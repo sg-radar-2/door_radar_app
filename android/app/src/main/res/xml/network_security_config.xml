@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 라즈베리파이 API 가 http 라서 로컬 대역 평문 통신을 허용한다.
+     AndroidManifest.xml 의 <application> 에 android:networkSecurityConfig="@xml/network_security_config" 추가 필요.
+     Android 는 domain-config 에 IP 대역을 쓸 수 없어서, 시연 단계에서는 평문을 전체 허용하고
+     인터넷 주소를 쓰게 되면 base-config 를 false 로 돌리고 도메인별로 연다. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

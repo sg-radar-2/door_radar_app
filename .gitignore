@@ -1,0 +1,40 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+.idea/
+.metadata.bak
+
+# 코드 생성물은 커밋한다(빌드 없이도 열리게). 빼고 싶으면 아래 주석 해제
+# *.g.dart
+# *.freezed.dart
+
+# Android
+android/.gradle/
+android/local.properties
+android/app/debug/
+android/app/profile/
+android/app/release/
+*.keystore
+*.jks
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/App.framework
+
+# mock server
+mock_server/.venv/
+mock_server/__pycache__/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/settings.json
+
+# 목 서버가 남기는 토큰·이벤트 id
+mock_server/mock_state.json

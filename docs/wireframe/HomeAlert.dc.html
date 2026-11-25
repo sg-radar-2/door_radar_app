@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>홈 이상 상황</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&amp;family=Noto+Sans+KR:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#141414}a:hover{color:#000000}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #EFEFEE; font-family: 'Inter Tight', 'Noto Sans KR', sans-serif; color: #141414; padding: 24px 20px 0; display: flex; flex-direction: column; gap: 16px; position: relative; overflow: hidden">
+
+  <div style="display: flex; align-items: center; justify-content: space-between">
+    <h1 style="margin: 0; font-size: 34px; line-height: 40px; font-weight: 600; letter-spacing: -1.2px">현관</h1>
+    <a href="Events.dc.html" aria-label="알림 기록" style="width: 48px; height: 48px; border-radius: 24px; background: #141414; color: #FFFFFF; display: flex; align-items: center; justify-content: center; position: relative">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z"></path><path d="M10 20.5a2.2 2.2 0 0 0 4 0"></path></svg>
+      <span style="position: absolute; top: 10px; right: 11px; width: 9px; height: 9px; border-radius: 5px; background: {{alert}}; border: 2px solid #141414"></span>
+    </a>
+  </div>
+
+  <div role="alert" style="background: {{alert}}; color: #FFFFFF; border-radius: 14px; padding: 18px 18px 18px 20px; display: flex; flex-direction: column; gap: 14px">
+    <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <span style="font-size: 12px; font-weight: 500; opacity: 0.9">이상 상황 · 15:03:10 촬영됨</span>
+        <span style="font-size: 22px; line-height: 28px; font-weight: 600; letter-spacing: -0.6px">장시간 체류 감지</span>
+        <span style="font-size: 13px; line-height: 19px">문 앞 1.4m에서 36초째 머무는 중</span>
+      </div>
+      <span style="height: 28px; border-radius: 14px; background: #FFFFFF; color: #141414; padding: 0 12px; display: flex; align-items: center; font-size: 13px; font-weight: 600; flex-shrink: 0">100%</span>
+    </div>
+    <div style="display: flex; gap: 8px">
+      <a href="EventDetail.dc.html" style="flex-grow: 1; height: 44px; border-radius: 22px; background: #FFFFFF; color: #141414; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; font-weight: 600">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.2l1.5-2h5.6l1.5 2h2.2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>사진 보기
+      </a>
+      <button type="button" style="height: 44px; border-radius: 22px; background: transparent; color: #FFFFFF; border: 1px solid rgba(255,255,255,0.7); padding: 0 18px; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer">확인</button>
+    </div>
+  </div>
+
+  <div style="background: #141414; border-radius: 14px; padding: 18px 18px 14px; display: flex; flex-direction: column; gap: 6px; color: #FFFFFF">
+    <div style="display: flex; align-items: center; justify-content: space-between">
+      <span style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600"><span style="width: 8px; height: 8px; border-radius: 4px; background: {{point}}"></span>LIVE · 위에서 본 문 앞</span>
+      <span style="font-size: 13px; color: #A3A3A3">1명</span>
+    </div>
+    <svg width="306" height="236" viewBox="0 0 306 236" role="img" aria-label="문 앞 실시간 지도: 문에서 1.4m 거리에 1명이 머무는 중" style="display: block">
+      <rect x="13" y="12" width="280" height="210" rx="10" fill="none" stroke="#3A3A3A" stroke-dasharray="3 5"></rect>
+      <path d="M83 222 A70 70 0 0 1 223 222" fill="none" stroke="#2C2C2C"></path>
+      <path d="M13 222 A140 140 0 0 1 293 222" fill="none" stroke="#2C2C2C"></path>
+      <path d="M153 222 L293 164 M153 222 L13 164" stroke="#3A3A3A"></path>
+      <text x="226" y="216" font-size="10" fill="#8A8A8A" font-family="Inter Tight">1m</text>
+      <text x="279" y="150" font-size="10" fill="#8A8A8A" font-family="Inter Tight">2m</text>
+      <polyline points="281,70 252,86 230,104 214,112 206,120" fill="none" stroke="{{alert}}" stroke-width="2" stroke-linecap="round" stroke-opacity="0.6"></polyline>
+      <circle cx="206" cy="120" r="22" fill="{{alert}}" fill-opacity="0.16"></circle>
+      <circle cx="206" cy="120" r="7" fill="{{alert}}"></circle>
+      <rect x="64" y="108" width="122" height="24" rx="12" fill="#FFFFFF"></rect>
+      <text x="125" y="124" font-size="11" font-weight="600" fill="#141414" text-anchor="middle" font-family="Inter Tight, Noto Sans KR">장시간 체류 · 36초</text>
+      <rect x="138" y="219" width="30" height="7" rx="3.5" fill="#FFFFFF"></rect>
+      <text x="153" y="214" font-size="10" fill="#A3A3A3" text-anchor="middle" font-family="Noto Sans KR">문</text>
+    </svg>
+  </div>
+
+  <div style="background: #FFFFFF; border-radius: 24px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between">
+    <div style="display: flex; flex-direction: column; gap: 2px">
+      <span style="font-size: 12px; color: #6B6B6B">이번 30분 안의 머무름</span>
+      <span style="font-size: 15px; font-weight: 600">1회째 · 2회부터 알림</span>
+    </div>
+    <span style="height: 28px; border-radius: 14px; background: #EFEFEE; padding: 0 12px; display: flex; align-items: center; font-size: 12px; font-weight: 500">촬영함</span>
+  </div>
+
+  <nav aria-label="하단 탭" style="position: absolute; left: 20px; right: 20px; bottom: 20px; height: 64px; border-radius: 32px; background: #FFFFFF; border: 1px solid #E2E2E0; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; padding: 0 8px">
+    <a href="Home.dc.html" aria-current="page" style="height: 48px; border-radius: 24px; background: #141414; color: #FFFFFF; display: flex; align-items: center; gap: 8px; padding: 0 20px; text-decoration: none; font-size: 14px; font-weight: 600">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"></path></svg>홈
+    </a>
+    <a href="Events.dc.html" style="height: 48px; border-radius: 24px; color: #6B6B6B; display: flex; align-items: center; gap: 8px; padding: 0 18px; text-decoration: none; font-size: 14px; font-weight: 500">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5V12l3 2"></path></svg>기록
+    </a>
+    <a href="Settings.dc.html" style="height: 48px; border-radius: 24px; color: #6B6B6B; display: flex; align-items: center; gap: 8px; padding: 0 18px; text-decoration: none; font-size: 14px; font-weight: 500">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg>설정
+    </a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"point":{"editor":"color","default":"#C6F24E","options":["#C6F24E","#7DD3FC","#FFFFFF"]},"alert":{"editor":"color","default":"#D4381C","options":["#D4381C","#E06A12","#B4234A"]},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { point: this.props.point ?? '#C6F24E', alert: this.props.alert ?? '#D4381C' };
+  }
+}
+</script>
+</body>
+</html>

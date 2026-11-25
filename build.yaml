@@ -1,0 +1,8 @@
+# JSON 키는 SPEC 그대로 snake_case (camera_on, still_s …), Dart 필드는 camelCase
+targets:
+  $default:
+    builders:
+      json_serializable:
+        options:
+          field_rename: snake
+          explicit_to_json: true
