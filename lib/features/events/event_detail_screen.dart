@@ -412,46 +412,128 @@ class _BehaviorChip extends StatelessWidget {
   }
 }
 
-/// 지나간 길: 문 앞 지도에 전체 궤적
-class _TrackMap extends ConsumerWidget {
+/// 지나간 길: 처음엔 전체 궤적. 재생 버튼이나 지도를 누르면 실제 속도로 다시 보여 준다(1·2·4배속).
+class _TrackMap extends ConsumerStatefulWidget {
   const _TrackMap({required this.event});
 
   final Event event;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_TrackMap> createState() => _TrackMapState();
+}
+
+const trackSpeeds = [1, 2, 4];
+
+abstract final class TrackMapKeys {
+  static const play = Key('track.play');
+  static const map = Key('track.map');
+  static Key speed(int s) => Key('track.speed.$s');
+}
+
+class _TrackMapState extends ConsumerState<_TrackMap> with SingleTickerProviderStateMixin {
+  late final AnimationController _play = AnimationController(vsync: this)..addListener(_tick);
+  int _speed = 1;
+
+  /// 재생을 한 번이라도 시작했는지 (아니면 전체 궤적)
+  bool _started = false;
+
+  List<TrailPoint> get _trail {
+    final start = widget.event.startedTime;
+    return [
+      for (final p in widget.event.track!)
+        if (p.length >= 3) TrailPoint(start.add(Duration(milliseconds: (p[0] * 1000).round())), p[1], p[2]),
+    ];
+  }
+
+  static Duration _total(List<TrailPoint> trail) =>
+      trail.length < 2 ? Duration.zero : trail.last.t.difference(trail.first.t);
+
+  void _tick() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _play.dispose();
+    super.dispose();
+  }
+
+  void _toggle(Duration total) {
+    if (total == Duration.zero) return;
+    if (_play.isAnimating) {
+      _play.stop();
+    } else {
+      _started = true;
+      _play.duration = total * (1 / _speed);
+      _play.forward(from: _play.value >= 1 ? 0 : _play.value);
+    }
+    setState(() {});
+  }
+
+  void _setSpeed(int speed, Duration total) {
+    if (speed == _speed) return;
+    setState(() => _speed = speed);
+    if (total == Duration.zero) return;
+    _play.duration = total * (1 / speed);
+    if (_play.isAnimating) _play.forward(from: _play.value); // 남은 구간을 새 배속으로
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final event = widget.event;
     final region = ref.watch(connectionProvider.select((c) => c.info?.region)) ??
         ref.watch(piSettingsProvider.select((s) => s?.region)) ??
         const Region(xmin: -2, xmax: 2, ymin: 0, ymax: 3, fovDeg: 135);
-    final track = event.track!;
-    final start = event.startedTime;
-    final trail = [
-      for (final p in track)
-        if (p.length >= 3) TrailPoint(start.add(Duration(milliseconds: (p[0] * 1000).round())), p[1], p[2]),
-    ];
-    final last = trail.last;
+    final full = _trail;
+    final total = _total(full);
+    final elapsed = _started ? total * _play.value : total;
+    final shown = _started ? trailUntil(full, elapsed) : full;
+    final head = shown.isEmpty ? full.first : shown.last;
+    final playing = _play.isAnimating;
+
     final person = TrackedPerson(
       person: LivePerson(
         id: event.person,
-        x: last.x,
-        y: last.y,
+        x: head.x,
+        y: head.y,
         situation: event.situation,
         prob: event.prob,
         abnormal: event.abnormal,
       ),
-      trail: trail,
-      firstX: trail.first.x,
-      firstY: trail.first.y,
+      trail: shown,
+      firstX: full.first.x,
+      firstY: full.first.y,
     );
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+      padding: const EdgeInsets.fromLTRB(18, 8, 8, 14),
       decoration: BoxDecoration(color: AppColors.ink, borderRadius: BorderRadius.circular(AppRadius.card)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('지나간 길', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.surface)),
-          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Expanded(
+                child: Text('지나간 길',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.surface)),
+              ),
+              Text(
+                '${formatSeconds(elapsed.inMilliseconds / 1000)} / ${formatSeconds(total.inMilliseconds / 1000)}',
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.onDarkMuted, fontFeatures: [FontFeature.tabularFigures()]),
+              ),
+              IconButton(
+                key: TrackMapKeys.play,
+                onPressed: total == Duration.zero ? null : () => _toggle(total),
+                tooltip: playing ? '멈추기' : '재생',
+                icon: Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
+                color: AppColors.surface,
+                disabledColor: AppColors.mapLine,
+                iconSize: 22,
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
           Center(
             child: SizedBox(
               width: 240,
@@ -460,19 +542,76 @@ class _TrackMap extends ConsumerWidget {
                 child: Semantics(
                   image: true,
                   label: '이 사람이 지나간 길',
-                  child: CustomPaint(
-                    painter: DoorMapPainter(
-                      region: region,
-                      people: [person],
-                      showLabels: false,
-                      textScaler: MediaQuery.textScalerOf(context),
+                  child: GestureDetector(
+                    key: TrackMapKeys.map,
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => _toggle(total),
+                    child: CustomPaint(
+                      painter: DoorMapPainter(
+                        region: region,
+                        people: [person],
+                        showLabels: false,
+                        textScaler: MediaQuery.textScalerOf(context),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
           ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (final sp in trackSpeeds) ...[
+                if (sp != trackSpeeds.first) const SizedBox(width: 6),
+                _SpeedChip(speed: sp, selected: sp == _speed, onTap: () => _setSpeed(sp, total)),
+              ],
+            ],
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// 배속 고르기 (검은 카드 위: 고른 것은 흰 바탕)
+class _SpeedChip extends StatelessWidget {
+  const _SpeedChip({required this.speed, required this.selected, required this.onTap});
+
+  final int speed;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '$speed배속',
+      excludeSemantics: true,
+      child: GestureDetector(
+        key: TrackMapKeys.speed(speed),
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          height: 28,
+          constraints: const BoxConstraints(minWidth: 44),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.surface : AppColors.mapArc,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+          ),
+          child: Text(
+            '$speed×',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: selected ? AppColors.ink : AppColors.onDarkMuted,
+            ),
+          ),
+        ),
       ),
     );
   }

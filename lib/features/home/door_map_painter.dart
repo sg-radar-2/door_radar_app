@@ -221,3 +221,26 @@ class DoorMapPainter extends CustomPainter {
   bool shouldRepaint(DoorMapPainter old) =>
       !identical(old.people, people) || old.region != region || old.textScaler != textScaler;
 }
+
+/// 이벤트 궤적 다시 보기: 시작부터 [elapsed] 까지의 점 + 그 순간 위치(앞뒤 점 사이를 이어 채움).
+/// [trail] 은 시각 순서. 비었으면 빈 목록, [elapsed] 가 끝을 넘으면 전체.
+List<TrailPoint> trailUntil(List<TrailPoint> trail, Duration elapsed) {
+  if (trail.isEmpty) return const [];
+  final at = trail.first.t.add(elapsed);
+  final out = <TrailPoint>[];
+  for (var i = 0; i < trail.length; i++) {
+    final p = trail[i];
+    if (!p.t.isAfter(at)) {
+      out.add(p);
+      continue;
+    }
+    if (i > 0) {
+      final a = trail[i - 1];
+      final span = p.t.difference(a.t).inMicroseconds;
+      final f = span <= 0 ? 1.0 : at.difference(a.t).inMicroseconds / span;
+      out.add(TrailPoint(at, a.x + (p.x - a.x) * f, a.y + (p.y - a.y) * f));
+    }
+    break;
+  }
+  return out;
+}

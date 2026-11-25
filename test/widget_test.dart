@@ -14,7 +14,7 @@ import 'package:door_radar_app/features/connect/connect_screen.dart';
 import 'package:door_radar_app/state/connection.dart';
 import 'package:door_radar_app/state/events.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/widgets.dart' show Semantics, Size;
+import 'package:flutter/widgets.dart' show AppLifecycleState, Semantics, Size;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'fakes.dart';
@@ -147,6 +147,23 @@ void main() {
     expect(find.text('현관'), findsOneWidget);
     expect(find.text('현관 기기\n연결하기'), findsNothing);
     expect(sockets.single.started, isTrue);
+  });
+
+  testWidgets('앱이 화면에서 사라지면 실시간 연결을 끊고, 다시 보이면 새로 붙는다', (tester) async {
+    await pumpApp(tester, saved: const SavedSession(device: PiDevice(host: '10.0.2.2'), token: 'tok'));
+    expect(sockets, hasLength(1));
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    await tester.pump();
+    expect(sockets.single.closed, isTrue);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(sockets, hasLength(2));
+    expect(sockets.last.started, isTrue);
+    expect(find.text('현관'), findsOneWidget); // 페어링은 그대로
   });
 
   testWidgets('토큰이 없어지면 연결 화면으로, 마지막 주소는 입력칸에', (tester) async {
@@ -370,7 +387,27 @@ void main() {
       expect(find.text('지나간 길'), findsOneWidget);
       expect(find.text('촬영 사진 없음'), findsOneWidget);
 
+      // 지나간 길: 처음엔 전체, 재생하면 실제 속도(0.4초 궤적), 배속을 바꾸면 그만큼 빨리
+      await tester.scrollUntilVisible(find.byKey(TrackMapKeys.play), 200);
+      await tester.ensureVisible(find.byKey(TrackMapKeys.play));
+      await tester.pumpAndSettle();
+      expect(find.text('0.4초 / 0.4초'), findsOneWidget);
+      await tester.tap(find.byKey(TrackMapKeys.play));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.text('0.2초 / 0.4초'), findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(find.text('0.4초 / 0.4초'), findsOneWidget);
+      await tester.tap(find.byKey(TrackMapKeys.speed(2)));
+      await tester.tap(find.byKey(TrackMapKeys.map)); // 지도를 눌러도 재생
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('0.2초 / 0.4초'), findsOneWidget);
+      await tester.pumpAndSettle();
+
       await tester.scrollUntilVisible(find.byKey(EventDetailScreen.yesKey), 200);
+      await tester.ensureVisible(find.byKey(EventDetailScreen.yesKey));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(EventDetailScreen.yesKey));
       await tester.pumpAndSettle();
       expect(find.text('정답으로 저장했어요'), findsOneWidget);

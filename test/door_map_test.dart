@@ -1,5 +1,6 @@
 import 'package:door_radar_app/data/models/models.dart';
 import 'package:door_radar_app/features/home/door_map_painter.dart';
+import 'package:door_radar_app/state/live.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -66,5 +67,33 @@ void main() {
     final g = DoorMapGeometry(r, mapDesignSize);
     expect(g.toPx(0, 0.5).dy, closeTo(g.area.bottom, 1e-9));
     expect(g.door.dy, closeTo(g.area.bottom + 35, 1e-9));
+  });
+
+  group('trailUntil (지나간 길 다시 보기)', () {
+    final t0 = DateTime(2026, 11, 19, 15);
+    final trail = [
+      TrailPoint(t0, 0, 0),
+      TrailPoint(t0.add(const Duration(seconds: 1)), 1, 2),
+      TrailPoint(t0.add(const Duration(seconds: 2)), 3, 2),
+    ];
+
+    test('처음엔 첫 점만', () {
+      final r = trailUntil(trail, Duration.zero);
+      expect(r.first.x, 0);
+      expect(r.last.x, 0); // 지금 위치 = 첫 점
+    });
+
+    test('점 사이는 이어 채운다', () {
+      final r = trailUntil(trail, const Duration(milliseconds: 1500));
+      expect(r, hasLength(3));
+      expect(r.last.x, closeTo(2, 1e-9));
+      expect(r.last.y, closeTo(2, 1e-9));
+      expect(r.last.t, t0.add(const Duration(milliseconds: 1500)));
+    });
+
+    test('끝을 넘으면 전체, 빈 궤적은 빈 목록', () {
+      expect(trailUntil(trail, const Duration(seconds: 9)), trail);
+      expect(trailUntil(const [], Duration.zero), isEmpty);
+    });
   });
 }

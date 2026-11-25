@@ -162,10 +162,35 @@ class ConnectionNotifier extends Notifier<PiConnection> {
     state = const PiConnection();
   }
 
+  bool _paused = false;
+  bool _announceOnConnect = false;
+
+  /// 앱이 화면에서 사라지면 실시간 연결을 끊는다 (초당 5번 프레임 → 배터리).
+  /// 페어링 정보는 그대로 두고, [resumeLive] 때 다시 붙는다.
+  void pauseLive() {
+    if (_paused) return;
+    _paused = true;
+    if (_socket == null) return;
+    _stopLive();
+    if (ref.mounted && state.isPaired) {
+      state = PiConnection(status: LinkStatus.disconnected, device: state.device, token: state.token, info: state.info);
+    }
+  }
+
+  /// 앱이 다시 보이면 연결. 붙으면 [reconnected] 로 알려서 그동안 빈 기간을 채운다.
+  void resumeLive() {
+    if (!_paused) return;
+    _paused = false;
+    if (!ref.mounted || !state.isPaired || _socket != null) return;
+    _announceOnConnect = true;
+    state = PiConnection(status: LinkStatus.connecting, device: state.device, token: state.token, info: state.info);
+    _startLive();
+  }
+
   void _startLive() {
     final device = state.device;
     final token = state.token;
-    if (!ref.mounted || device == null || token == null || _socket != null) return;
+    if (!ref.mounted || _paused || device == null || token == null || _socket != null) return;
     final socket = ref.read(liveSocketFactoryProvider)(device, token, () {
       if (!_reconnected.isClosed) _reconnected.add(null);
     });
@@ -205,6 +230,10 @@ class ConnectionNotifier extends Notifier<PiConnection> {
     );
     if (s.status == LiveSocketStatus.retrying && !_tokenChecked) _checkToken();
     if (s.status == LiveSocketStatus.connected && state.info == null) _loadInfo(state.device!);
+    if (s.status == LiveSocketStatus.connected && _announceOnConnect) {
+      _announceOnConnect = false; // 백그라운드에서 돌아와 새 소켓이 붙음 = 다시 연결
+      if (!_reconnected.isClosed) _reconnected.add(null);
+    }
   }
 
   /// 저장된 토큰으로 붙지 못했을 때, 토큰이 틀린 건지(401) 네트워크 문제인지 REST 로 한 번 확인.
