@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "202619607703",
+    "project_id": "radar-team2",
+    "storage_bucket": "radar-team2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:202619607703:android:fa1bf40691729a1661e7d2",
+        "android_client_info": {
+          "package_name": "com.sgradar.door_radar_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAfzlg99hhBJ8YdjGe7AGHfjmjS3b4pX8o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

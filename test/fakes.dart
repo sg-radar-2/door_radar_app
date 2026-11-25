@@ -7,6 +7,7 @@ import 'package:door_radar_app/data/api/live_socket.dart';
 import 'package:door_radar_app/data/api/pi_api.dart';
 import 'package:door_radar_app/data/models/models.dart';
 import 'package:door_radar_app/data/notifications.dart';
+import 'package:door_radar_app/data/push.dart';
 
 /// 요청을 기록하고 미리 정한 응답을 돌려주는 dio 어댑터
 class FakeAdapter implements HttpClientAdapter {
@@ -119,3 +120,28 @@ Map<String, Object?> cameraEventJson(int id, String person, String t, {String si
         'photo': photo, 't': t, 'started_at': t, 'ended_at': null, 'label': null,
       },
     };
+
+/// FCM 없이 토큰·알림 누르기를 직접 넣는다
+class FakePush implements PushMessaging {
+  FakePush([this.current = 'fcm1']);
+
+  String? current;
+  final _refresh = StreamController<String>.broadcast();
+  final _taps = StreamController<int>.broadcast();
+
+  void refresh(String t) {
+    current = t;
+    _refresh.add(t);
+  }
+
+  void tap(int id) => _taps.add(id);
+
+  @override
+  Future<String?> token() async => current;
+
+  @override
+  Stream<String> get tokenRefresh => _refresh.stream;
+
+  @override
+  Stream<int> get taps => _taps.stream;
+}

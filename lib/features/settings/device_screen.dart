@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
@@ -7,6 +8,7 @@ import '../../data/api/pi_api.dart';
 import '../../data/models/models.dart';
 import '../../state/connection.dart';
 import '../../state/live.dart';
+import '../../state/push.dart';
 import '../../state/settings.dart';
 
 /// 와이어프레임 Device.dc.html
@@ -132,6 +134,8 @@ class _DeviceScreenState extends ConsumerState<DeviceScreen> {
                   child: const Text('다른 기기 연결'),
                 ),
               ),
+              const SizedBox(height: 16),
+              const _PushRow(),
             ],
           ),
         ),
@@ -418,6 +422,40 @@ class _StorageTile extends StatelessWidget {
             style: const TextStyle(fontSize: 12, height: 16 / 12, color: AppColors.muted),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 푸시 알림(FCM) 상태. 길게 누르면 FCM 토큰을 복사한다 (Firebase 콘솔 "테스트 메시지 전송"용).
+class _PushRow extends ConsumerWidget {
+  const _PushRow();
+
+  static const pushKey = Key('device.push');
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final token = ref.watch(fcmTokenProvider).value;
+    final registered = ref.watch(pushRegistrationProvider) != null;
+    final text = token == null
+        ? '푸시 알림을 쓸 수 없어요'
+        : registered
+            ? '푸시 알림 받는 중 · 길게 눌러 토큰 복사'
+            : '푸시 알림 등록 전 · 길게 눌러 토큰 복사';
+    return GestureDetector(
+      key: pushKey,
+      behavior: HitTestBehavior.opaque,
+      onLongPress: token == null
+          ? null
+          : () async {
+              await Clipboard.setData(ClipboardData(text: token));
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('푸시 토큰을 복사했어요')));
+              }
+            },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Text(text, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
       ),
     );
   }

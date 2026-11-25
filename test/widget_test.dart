@@ -5,6 +5,7 @@ import 'package:door_radar_app/features/settings/device_screen.dart';
 import 'package:door_radar_app/features/settings/settings_screen.dart';
 import 'package:door_radar_app/data/local_store.dart';
 import 'package:door_radar_app/data/notifications.dart';
+import 'package:door_radar_app/data/push.dart';
 import 'package:door_radar_app/data/storage.dart';
 import 'package:door_radar_app/features/events/event_detail_screen.dart';
 import 'package:door_radar_app/features/events/events_screen.dart';
@@ -35,6 +36,7 @@ void main() {
   late List<FakeLiveSocket> sockets;
   late FakeNotifications notes;
   late MemoryLocalStore store;
+  late FakePush push;
   late Map<int, Map<String, Object?>> piEvents; // 파이에 있는 이벤트 상세 (id → JSON)
   late Map<String, Object?> piSettings; // 파이 설정 (PUT 하면 바뀐다)
   late bool failSettings; // PUT /api/settings 실패시키기
@@ -51,6 +53,7 @@ void main() {
     sockets = [];
     notes = FakeNotifications();
     store = MemoryLocalStore();
+    push = FakePush();
     piEvents = {};
     piSettings = {...settingsBody};
     failSettings = false;
@@ -66,6 +69,7 @@ void main() {
           '/api/radar/reconnect' => (200, {'radar': 'connecting'}),
           '/api/events' => (200, recentBody),
           '/api/photos/pending' => (200, {'ids': <int>[]}),
+          '/api/push_token' => (200, {'ok': true}),
           final p when p.endsWith('/label') => labelEvent(int.parse(p.split('/')[3]), (o.data as Map)['situation'] as String?),
           final p when p.startsWith('/api/events/') && piEvents.containsKey(int.parse(p.split('/')[3])) =>
             (200, piEvents[int.parse(p.split('/')[3])]),
@@ -84,6 +88,7 @@ void main() {
         savedSessionProvider.overrideWithValue(saved),
         alertNotificationsProvider.overrideWithValue(notes),
         localStoreProvider.overrideWithValue(store),
+        pushMessagingProvider.overrideWithValue(push),
         piApiFactoryProvider.overrideWithValue((device, token) => fakeApi(device, token, adapter)),
         liveSocketFactoryProvider.overrideWithValue((device, token, onReconnected) {
           final s = FakeLiveSocket();
@@ -433,6 +438,24 @@ void main() {
 
   group('클라우드', () {
     const saved = SavedSession(device: PiDevice(host: '10.0.2.2'), token: 'tok');
+
+    List<Object?> pushPuts() =>
+        [for (final r in adapter.requests) if (r.path == '/api/push_token') (r.data as Map)['token']];
+
+    testWidgets('연결되면 FCM 토큰을 클라우드에 등록, 토큰이 바뀌면 다시', (tester) async {
+      await pumpApp(tester, saved: saved);
+      expect(pushPuts(), ['fcm1']);
+
+      push.refresh('fcm2');
+      await tester.pumpAndSettle();
+      expect(pushPuts(), ['fcm1', 'fcm2']);
+    });
+
+    test('푸시 data 의 event_id (문자열) → 이벤트 id', () {
+      expect(eventIdOf({'event_id': '128'}), 128);
+      expect(eventIdOf({'event_id': 'x'}), isNull);
+      expect(eventIdOf({}), isNull);
+    });
 
     testWidgets('파이가 클라우드에 안 붙어 있으면 홈에 "기기 꺼짐"', (tester) async {
       await pumpApp(tester, saved: saved);

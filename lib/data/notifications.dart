@@ -66,9 +66,17 @@ class LocalAlertNotifications implements AlertNotifications {
   Future<void> requestPermission() async {
     if (!await _init()) return;
     try {
-      await _plugin
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.requestNotificationsPermission();
+      final android = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      // 앱이 꺼져 있을 때 오는 FCM 푸시도 이 채널을 쓰므로 미리 만든다 (Manifest 의 기본 채널)
+      await android?.createNotificationChannel(const AndroidNotificationChannel(
+        channelId,
+        '이상 상황',
+        description: '장시간 체류 · 배회 · 반복 접근이 감지되면 알려요',
+        importance: Importance.high,
+        playSound: true,
+        enableVibration: true,
+      ));
+      await android?.requestNotificationsPermission();
       await _plugin
           .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
           ?.requestPermissions(alert: true, sound: true);
