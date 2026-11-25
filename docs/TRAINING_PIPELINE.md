@@ -47,7 +47,7 @@
 ### 0. 정리 (지금)
 
 - [ ] **파이**: `POST /api/events/{id}/label`이 `{"situation": null}`을 받으면 DB의 `label`을 `null`로 되돌리기 (앱 "되돌리기")
-- [ ] **앱**: README 실제 파이 체크리스트의 "labels.csv에 남는다"를 "DB의 label에 남는다"로 고치기
+- [x] **앱**: README 실제 파이 체크리스트의 "labels.csv에 남는다"를 "DB의 label에 남는다"로 고치기
 
 ### 1. 손으로 한 바퀴 (서버 없이)
 
