@@ -119,7 +119,7 @@ void main() {
     expect(adapter.requests.map((r) => r.path).take(2), ['/api/pair', '/api/info']);
     expect(adapter.requests[1].headers['Authorization'], 'Bearer tok');
     expect(kv.values['pi_token'], 'tok');
-    expect(kv.values['pi_address'], '10.0.2.2');
+    expect(kv.values['pi_address'], PiDevice.cloud.address);
     expect(sockets.single.started, isTrue);
   });
 

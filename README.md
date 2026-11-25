@@ -37,7 +37,10 @@ python server.py
 
 - 파이 API(SPEC 4장)에 클라우드 추가분(9.1·9.2)을 흉내 낸다: 토큰으로 `/api/info`, 프레임·상태의 `pi`, `PUT /api/push_token`, 파이가 필요한 요청의 503 `pi_offline`, 사진은 지금 쓰는 폰이 모두 받으면 지움(7일 넘어도 지움).
 - 파이 꺼짐 만들기: `Invoke-RestMethod -Method Post http://127.0.0.1:8080/mock/pi -ContentType application/json -Body '{"online": false}'` (되돌리려면 `true`). 홈에 "기기 꺼짐"이 뜬다.
-- 앱이 붙는 주소: 에뮬레이터는 기본값(`http://10.0.2.2:8080`) 그대로, 실제 폰은 `flutter run --dart-define=CLOUD_URL=http://<PC IP>:8080` (PC IP는 서버가 시작할 때 출력, 폰과 PC가 같은 Wi-Fi).
+- **바깥 파이 모드** (파이의 클라우드 클라이언트 개발·시험용, SPEC 9.3): `$env:MOCK_EXTERNAL_PI="1"`로 켜면 내장 대본 대신 `/pi/register` → `/pi/ws`로 붙은 파이의 데이터를 앱에 준다. 등록 비밀값은 `dev-enroll`(`$env:MOCK_ENROLL_SECRET`로 바꿈), 페어링 코드는 파이가 `hello`로 알려 준 것.
+  - 진짜 파이 없이 보려면 다른 터미널에서 `.\.venv\Scripts\python.exe fake_pi_client.py --cloud http://127.0.0.1:8080` (페어링 코드 `135790`). 이 파일이 파이 쪽 클라이언트의 참고 구현이다.
+  - 진짜 파이가 PC의 목 서버에 붙으려면 `--cloud http://<PC IP>:8080`, 둘이 같은 네트워크.
+- 앱이 붙는 주소: 기본값은 실제 클라우드(`https://rad2-cloud.onrender.com`)다. 목 서버에 붙이려면 에뮬레이터는 `flutter run --dart-define=CLOUD_URL=http://10.0.2.2:8080`, 실제 폰은 `flutter run --dart-define=CLOUD_URL=http://<PC IP>:8080` (PC IP는 서버가 시작할 때 출력, 폰과 PC가 같은 Wi-Fi).
 - 실제 폰에서 안 붙으면 Windows 방화벽에서 Python의 8080 포트(개인 네트워크)를 허용한다.
 - 실시간 대본은 통과 → 방문 → 장시간 체류(15초 머무르면 이상, 1초 뒤 촬영 이벤트)를 반복한다. 최종 판정은 실제 파이처럼 사람이 사라지고 3초 뒤에 온다. `$env:MOCK_SPEED="10"`이면 10배 빨리 돈다.
 - 이벤트·사진은 메모리에만 있어서 서버를 끄면 처음 상태(오늘 이벤트 6개)로 돌아간다. 토큰과 다음 이벤트 번호는 실제 파이처럼 `mock_server/mock_state.json`에 남아서 다시 켜도 앱은 그대로 붙는다(다시 페어링하려면 이 파일을 지운다). 번호를 이어 매기므로 다시 켤 때마다 오늘치 6개가 새 번호로 폰 기록에 더해진다.
@@ -48,8 +51,8 @@ python server.py
 ```powershell
 flutter emulators --launch door_radar   # 에뮬레이터가 꺼져 있으면
 flutter devices                         # 폰이 "not authorized"면 폰 화면의 USB 디버깅 허용 창을 누른다
-flutter run                             # 목 서버(에뮬레이터). 기기가 여럿이면 -d emulator-5554 / -d <폰 id>
-flutter run --dart-define=CLOUD_URL=https://<클라우드 주소>   # 실제 클라우드
+flutter run                             # 실제 클라우드. 기기가 여럿이면 -d emulator-5554 / -d <폰 id>
+flutter run --dart-define=CLOUD_URL=http://10.0.2.2:8080   # 목 서버(에뮬레이터)
 ```
 
 - 앱이 붙는 서버는 빌드 때 `CLOUD_URL`로 정한다(`lib/app/constants.dart`). 다른 서버로 바꿔 빌드하면 저장된 토큰은 버리고 다시 페어링한다.
@@ -78,7 +81,7 @@ lib/
   features/   connect/(6자리 코드), home/(door_map_painter.dart), events/(기록·상세·지나간 길 재생), settings/(설정·기기 상태)
   widgets/    app_shell.dart(하단 탭), pill_switch.dart, situation_chip.dart
 assets/fonts/ Inter Tight(400·500·600·700) + Noto Sans KR(400·500·700), OFL-*.txt (앱 '라이선스'에도 등록)
-mock_server/  server.py (FastAPI), requirements.txt, mock_state.json(토큰·다음 이벤트 번호, git 제외)
+mock_server/  server.py (FastAPI, 가짜 클라우드), fake_pi_client.py (파이 쪽 9.3 참고 구현), requirements.txt, mock_state.json(git 제외)
 docs/         SPEC.md, DESIGN.md, TRAINING_PIPELINE.md, wireframe/
 ```
 

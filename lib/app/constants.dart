@@ -8,10 +8,10 @@ abstract final class Situations {
   static bool isAbnormal(String s) => abnormal.contains(s);
 }
 
-/// 앱이 붙는 클라우드 (SPEC 9장). 빌드할 때 `--dart-define=CLOUD_URL=https://...` 로 정한다.
-/// 안 정하면 에뮬레이터에서 PC 의 목 서버(`mock_server/`).
+/// 앱이 붙는 클라우드 (SPEC 9장). 기본은 실제 클라우드.
+/// PC 의 목 서버(`mock_server/`)로 개발할 때는 `--dart-define=CLOUD_URL=http://10.0.2.2:8080` (에뮬레이터).
 abstract final class CloudServer {
-  static const url = String.fromEnvironment('CLOUD_URL', defaultValue: 'http://10.0.2.2:8080');
+  static const url = String.fromEnvironment('CLOUD_URL', defaultValue: 'https://rad2-cloud.onrender.com');
 }
 
 /// 클라우드가 그대로 흉내 내는 파이 API 의 값들

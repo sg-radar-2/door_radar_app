@@ -5,7 +5,10 @@
 push_token, 503 pi_offline, 사진은 모든 폰이 받으면 지움)을 더한다.
 레이더·카메라 없이 고정 이벤트와 대본대로 움직이는 사람(통과 → 방문 → 장시간 체류)을 돌려준다.
 
-개발용: POST /mock/pi {"online": false} 로 파이가 끊긴 상황을 만든다 (true 로 되돌림).
+두 가지 모드:
+- 내장 대본(기본): 파이를 흉내 낸 대본으로 앱을 개발한다. POST /mock/pi {"online": false} 로 파이 꺼짐을 만든다.
+- 바깥 파이(MOCK_EXTERNAL_PI=1): 진짜 파이(또는 fake_pi_client.py)가 9.3 대로 /pi/register → /pi/ws 로 붙고,
+  앱은 그 파이의 데이터를 받는다. 파이의 클라우드 클라이언트를 클라우드 없이 개발·시험하는 용도.
 
 실행:
     pip install -r requirements.txt
@@ -55,7 +58,19 @@ ACTIVE: set[str] = set()  # 이번에 켠 뒤 요청한 토큰 (= 지금 쓰는 
 DELETED_PHOTOS: set[int] = set()  # 클라우드에서 지운 사진 (파이에는 30일 남음)
 PUSH_TOKENS: dict[str, str] = {}  # 앱 토큰 → FCM 토큰 (목 서버는 보내지 않고 기록만)
 CLOUD_KEEP_DAYS = 7  # 아무도 안 받아도 이 기간이 지나면 클라우드에서 지움 (SPEC 9.2)
-PI_ONLINE = True  # 파이가 클라우드에 붙어 있는지 (POST /mock/pi 로 바꿈)
+PI_ONLINE = True  # 파이가 클라우드에 붙어 있는지 (POST /mock/pi 로 바꿈, 바깥 파이 모드에서는 /pi/ws 연결 여부)
+
+# ---- 바깥 파이 모드 (SPEC 9.3): MOCK_EXTERNAL_PI=1 이면 내장 대본 대신 /pi/ws 로 붙은 진짜 파이의 데이터를 앱에 준다
+EXTERNAL = os.environ.get("MOCK_EXTERNAL_PI") == "1"
+ENROLL_SECRET = os.environ.get("MOCK_ENROLL_SECRET", "dev-enroll")  # /pi/register 비밀값
+DEVICES: dict[str, dict[str, Any]] = {}  # device_token → {"device_id", "name"} (mock_state.json 에 남음)
+PI_WS: WebSocket | None = None  # 지금 붙어 있는 파이 (목 서버는 기기 하나만)
+PI_INFO: dict[str, Any] | None = None  # hello.info
+PI_STATUS: dict[str, Any] | None = None  # 마지막 status
+PI_PAIR_CODE: str | None = None  # hello.pair_code
+PHOTOS: dict[tuple[int, bool], bytes] = {}  # (이벤트 id, 썸네일?) → JPEG
+PENDING_CMDS: dict[str, asyncio.Future] = {}  # cmd id → cmd_result 기다리는 중
+CMD_TIMEOUT_S = 5.0
 CLIENTS: set[WebSocket] = set()
 STARTED = datetime.now(KST)
 
@@ -99,12 +114,14 @@ def load_state() -> None:
     except (OSError, ValueError):
         return
     TOKENS.update(data.get("tokens", []))
+    DEVICES.update(data.get("devices", {}))
     _next_id = max(_next_id, int(data.get("next_id", _next_id)))
 
 
 def save_state() -> None:
     try:
-        STATE_FILE.write_text(json.dumps({"tokens": sorted(TOKENS), "next_id": _next_id}), encoding="utf-8")
+        STATE_FILE.write_text(json.dumps({"tokens": sorted(TOKENS), "next_id": _next_id, "devices": DEVICES},
+                                         ensure_ascii=False), encoding="utf-8")
     except OSError:
         pass
 
@@ -288,16 +305,29 @@ async def live_loop() -> None:
 
 # ---------------------------------------------------------------- 앱
 
+async def offline_heartbeat() -> None:
+    """바깥 파이 모드: 파이가 안 붙어 있으면 1초마다 offline 프레임 (SPEC 9.1)."""
+    while True:
+        if not PI_ONLINE:
+            await broadcast(offline_frame())
+        await asyncio.sleep(1)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    global PI_ONLINE
     load_state()
-    seed_events()
-    task = asyncio.create_task(live_loop())
+    if EXTERNAL:
+        PI_ONLINE = False  # 파이가 /pi/ws 로 붙으면 online
+        task = asyncio.create_task(offline_heartbeat())
+    else:
+        seed_events()
+        task = asyncio.create_task(live_loop())
     yield
     task.cancel()
 
 
-app = FastAPI(title="Door Radar mock", lifespan=lifespan)
+app = FastAPI(title="Door Radar mock cloud", lifespan=lifespan)
 
 
 @app.exception_handler(ApiError)
@@ -327,20 +357,48 @@ def get_event(event_id: int) -> dict[str, Any]:
     return ev
 
 
+async def forward_cmd(method: str, path: str, body: Any) -> Any:
+    """바깥 파이 모드: 앱 요청을 파이에 cmd 로 보내고 cmd_result 를 그대로 돌려준다 (SPEC 9.3)."""
+    require_pi()
+    cmd_id = secrets.token_hex(4)
+    fut: asyncio.Future = asyncio.get_running_loop().create_future()
+    PENDING_CMDS[cmd_id] = fut
+    try:
+        await PI_WS.send_json({"type": "cmd", "id": cmd_id, "method": method, "path": path, "body": body})
+        result = await asyncio.wait_for(fut, CMD_TIMEOUT_S)
+    except asyncio.TimeoutError:
+        raise ApiError(504, "pi_timeout", "기기가 응답하지 않아요. 잠시 뒤 다시 시도해 주세요.")
+    except (RuntimeError, WebSocketDisconnect):
+        raise ApiError(503, "pi_offline", "기기가 꺼져 있거나 인터넷에 연결되지 않았어요.")
+    finally:
+        PENDING_CMDS.pop(cmd_id, None)
+    code = int(result.get("status", 200))
+    if code >= 400:
+        err = result.get("body") or {}
+        raise ApiError(code, err.get("error", "pi_error"), err.get("message", "기기에서 처리하지 못했어요."))
+    return result.get("body")
+
+
 @app.get("/api/info")
 def info(request: Request) -> dict[str, Any]:
     # 클라우드: 토큰이 있어야 어느 파이인지 안다. 없으면 클라우드 정보만 (SPEC 9.1)
     auth = request.headers.get("authorization", "")
     if auth[7:] not in TOKENS:
         return {"name": "rad2-cloud", "version": "0.1.0-mock"}
+    if EXTERNAL:
+        if PI_INFO is None:
+            raise ApiError(503, "pi_offline", "기기가 아직 클라우드에 연결된 적이 없어요.")
+        return PI_INFO
     return {"name": "doorradar", "host": "rad2pi.local", "version": "0.1.0-mock",
             "model": "situation_trees_1111", "model_version": "v5", "region": SETTINGS["region"]}
 
 
 @app.post("/mock/pi")
 async def mock_pi(request: Request) -> dict[str, bool]:
-    """개발용: 파이가 클라우드에서 끊긴 상황 만들기 {"online": false}."""
+    """개발용(내장 대본 모드): 파이가 클라우드에서 끊긴 상황 만들기 {"online": false}."""
     global PI_ONLINE
+    if EXTERNAL:
+        raise ApiError(400, "external_mode", "바깥 파이 모드에서는 파이 연결을 끊어서 시험하세요.")
     PI_ONLINE = bool((await request.json()).get("online", True))
     return {"online": PI_ONLINE}
 
@@ -352,13 +410,15 @@ async def push_token(request: Request, token: str = Depends(require_token)) -> d
     if not isinstance(fcm, str) or not fcm:
         raise ApiError(400, "bad_token", "token 은 FCM 토큰 문자열이어야 합니다.")
     PUSH_TOKENS[token] = fcm
+    print(f"  [push] FCM 토큰 등록: {fcm}", flush=True)
     return {"ok": True}
 
 
 @app.post("/api/pair")
 async def pair(request: Request) -> dict[str, str]:
     body = await request.json()
-    if str(body.get("code", "")) != PAIR_CODE:
+    code = PI_PAIR_CODE if EXTERNAL else PAIR_CODE
+    if code is None or str(body.get("code", "")) != code:
         raise ApiError(401, "bad_code", "페어링 코드가 틀렸습니다.")
     token = secrets.token_urlsafe(24)
     TOKENS.add(token)
@@ -369,20 +429,29 @@ async def pair(request: Request) -> dict[str, str]:
 
 @app.get("/api/status")
 def status(token: str = Depends(require_token)) -> dict[str, Any]:
-    photos = sum(1 for e in EVENTS.values() if e.get("photo"))
-    return {
-        "radar": "ok", "radar_host": "192.168.0.20", "radar_error": None, "frame_rate": 10.0,
-        "camera": "ok", "camera_backend": "fake",
-        "latency_s": 0.12, "judge_error": None, "cpu_temp_c": 52.3,
-        "uptime_s": int((now() - STARTED).total_seconds()),
-        "storage": {"used_gb": round(1.0 + photos * 0.0003, 2), "total_gb": 29.0, "photos": photos},
-        "pending_photos": len(pending_ids(token)),
-        "pi": "online" if PI_ONLINE else "offline",
-    } | ({} if PI_ONLINE else {"radar": "disconnected"})
+    if EXTERNAL:
+        base = dict(PI_STATUS or {"radar": "disconnected", "camera": "none", "frame_rate": 0.0,
+                                  "storage": {"used_gb": 0.0, "total_gb": 0.0, "photos": 0}})
+    else:
+        photos = sum(1 for e in EVENTS.values() if e.get("photo"))
+        base = {
+            "radar": "ok", "radar_host": "192.168.0.20", "radar_error": None, "frame_rate": 10.0,
+            "camera": "ok", "camera_backend": "fake",
+            "latency_s": 0.12, "judge_error": None, "cpu_temp_c": 52.3,
+            "uptime_s": int((now() - STARTED).total_seconds()),
+            "storage": {"used_gb": round(1.0 + photos * 0.0003, 2), "total_gb": 29.0, "photos": photos},
+        }
+    base["pending_photos"] = len(pending_ids(token))  # 클라우드 기준: 이 폰이 아직 안 받은 사진
+    base["pi"] = "online" if PI_ONLINE else "offline"
+    if not PI_ONLINE:
+        base["radar"] = "disconnected"
+    return base
 
 
 @app.post("/api/radar/reconnect")
-def radar_reconnect(_: str = Depends(require_token)) -> dict[str, str]:
+async def radar_reconnect(_: str = Depends(require_token)) -> Any:
+    if EXTERNAL:
+        return await forward_cmd("POST", "/api/radar/reconnect", None)
     require_pi()
     return {"radar": "connecting"}
 
@@ -422,20 +491,35 @@ def render_photo(ev: dict[str, Any], thumb: bool) -> bytes:
 
 
 @app.get("/api/events/{event_id}/photo")
-def event_photo(event_id: int, thumb: int = 0, _: str = Depends(require_token)) -> Response:
+async def event_photo(event_id: int, thumb: int = 0, _: str = Depends(require_token)) -> Response:
     ev = get_event(event_id)
     if not ev.get("photo"):
         raise ApiError(404, "no_photo", "이 이벤트에는 사진이 없습니다.")
     if event_id in DELETED_PHOTOS:
         raise ApiError(404, "no_photo", "모든 폰이 받아 가서 클라우드에서 지운 사진입니다.")
-    return Response(render_photo(ev, bool(thumb)), media_type="image/jpeg")
+    if not EXTERNAL:
+        return Response(render_photo(ev, bool(thumb)), media_type="image/jpeg")
+    jpeg = PHOTOS.get((event_id, bool(thumb))) or PHOTOS.get((event_id, False))
+    if jpeg is None:
+        # 아직 안 올라왔거나 클라우드에서 지운 뒤 → 파이에 다시 올려 달라고 (SPEC 9.2)
+        if PI_ONLINE and PI_WS is not None:
+            try:
+                await PI_WS.send_json({"type": "photo_request", "ids": [event_id]})
+            except RuntimeError:
+                pass
+        raise ApiError(404, "no_photo", "사진이 아직 클라우드에 없어요. 잠시 뒤 다시 받아요.")
+    return Response(jpeg, media_type="image/jpeg")
 
 
 @app.post("/api/events/{event_id}/label")
 async def event_label(event_id: int, request: Request, _: str = Depends(require_token)) -> dict[str, Any]:
-    require_pi()
     ev = get_event(event_id)
     situation = (await request.json()).get("situation")
+    if EXTERNAL:
+        result = await forward_cmd("POST", f"/api/events/{event_id}/label", {"situation": situation})
+        ev["label"] = situation
+        return result if isinstance(result, dict) else summary(ev)
+    require_pi()
     if situation is None:  # 되돌리기: 정답 지우기
         ev["label"] = None
         return summary(ev)
@@ -452,8 +536,13 @@ def get_settings(_: str = Depends(require_token)) -> dict[str, Any]:
 
 @app.put("/api/settings")
 async def put_settings(request: Request, _: str = Depends(require_token)) -> dict[str, Any]:
-    require_pi()
     body = await request.json()
+    if EXTERNAL:
+        result = await forward_cmd("PUT", "/api/settings", body)
+        if isinstance(result, dict):
+            SETTINGS.update(result)
+        return SETTINGS
+    require_pi()
     for key in body:
         if key in READ_ONLY_SETTINGS:
             continue  # 읽기 전용은 조용히 무시
@@ -472,11 +561,13 @@ async def put_settings(request: Request, _: str = Depends(require_token)) -> dic
 
 
 def pending_ids(token: str) -> list[int]:
-    """사진이 있고, 클라우드에 아직 있고(7일 안, 안 지움), 이 토큰이 ack 하지 않은 이벤트 id. 오래된 것부터."""
+    """사진이 있고, 클라우드에 아직 있고(7일 안, 안 지움), 이 토큰이 ack 하지 않은 이벤트 id. 오래된 것부터.
+    바깥 파이 모드에서는 실제로 올라온 사진만."""
     limit = now() - timedelta(days=CLOUD_KEEP_DAYS)
     acked = ACKED.setdefault(token, set())
     return [e["id"] for e in sorted(EVENTS.values(), key=lambda e: e["t"])
             if e.get("photo") and e["id"] not in acked and e["id"] not in DELETED_PHOTOS
+            and (not EXTERNAL or (e["id"], False) in PHOTOS)
             and datetime.fromisoformat(e["t"]) > limit]
 
 
@@ -493,7 +584,18 @@ async def photos_ack(request: Request, token: str = Depends(require_token)) -> d
     for i in ids:
         if all(int(i) in ACKED.get(t, set()) for t in ACTIVE):
             DELETED_PHOTOS.add(int(i))
+            PHOTOS.pop((int(i), False), None)
+            PHOTOS.pop((int(i), True), None)
     return {"acked": len(ACKED[token])}
+
+
+async def send_viewers() -> None:
+    """앱이 보고 있을 때만 파이가 프레임을 보내도록 (SPEC 9.3)."""
+    if PI_WS is not None:
+        try:
+            await PI_WS.send_json({"type": "viewers", "count": len(CLIENTS)})
+        except RuntimeError:
+            pass
 
 
 @app.websocket("/ws/live")
@@ -503,6 +605,7 @@ async def ws_live(ws: WebSocket, token: str = "") -> None:
         return
     await ws.accept()
     CLIENTS.add(ws)
+    await send_viewers()
     try:
         # 붙자마자 프레임 하나를 바로 보낸다
         first = LAST_FRAME or {"type": "frame", "t": iso(now()), "radar": "ok", "pi": "online", "people": []}
@@ -513,6 +616,115 @@ async def ws_live(ws: WebSocket, token: str = "") -> None:
         pass
     finally:
         CLIENTS.discard(ws)
+        await send_viewers()
+
+
+# ---------------------------------------------------------------- 파이 ↔ 클라우드 (SPEC 9.3)
+
+def device_of(token: str) -> dict[str, Any]:
+    dev = DEVICES.get(token)
+    if dev is None:
+        raise ApiError(401, "unauthorized", "기기 토큰이 없거나 틀렸습니다. /pi/register 로 등록하세요.")
+    return dev
+
+
+@app.post("/pi/register")
+async def pi_register(request: Request) -> dict[str, str]:
+    """파이 첫 등록: {"enroll_secret", "name"} → {"device_id", "device_token"}."""
+    body = await request.json()
+    if body.get("enroll_secret") != ENROLL_SECRET:
+        raise ApiError(401, "bad_enroll_secret", "등록 비밀값이 틀렸습니다.")
+    device_id = f"dev-{secrets.token_hex(3)}"
+    token = secrets.token_urlsafe(24)
+    DEVICES[token] = {"device_id": device_id, "name": str(body.get("name") or "doorradar")}
+    save_state()
+    print(f"  [pi] 등록: {device_id} ({DEVICES[token]['name']})", flush=True)
+    return {"device_id": device_id, "device_token": token}
+
+
+@app.post("/pi/photos/{event_id}")
+async def pi_photo(event_id: int, request: Request, thumb: int = 0) -> dict[str, bool]:
+    """파이가 사진 올리기: 본문 image/jpeg, Authorization: Bearer <device_token>."""
+    auth = request.headers.get("authorization", "")
+    device_of(auth[7:] if auth.lower().startswith("bearer ") else "")
+    data = await request.body()
+    if not data.startswith(b"\xff\xd8"):
+        raise ApiError(400, "bad_photo", "JPEG 이 아닙니다.")
+    PHOTOS[(event_id, bool(thumb))] = data
+    DELETED_PHOTOS.discard(event_id)  # 다시 올라온 사진 (photo_request)
+    return {"ok": True}
+
+
+def store_pi_event(ev: dict[str, Any]) -> dict[str, Any]:
+    """파이가 보낸 이벤트(상세 전체)를 파이의 id 그대로 저장. 같은 id 는 덮어쓴다(final 갱신)."""
+    eid = int(ev["id"])
+    if ev.get("kind") == "final":
+        ev.setdefault("also", [])
+    old = EVENTS.get(eid)
+    if old is not None and old.get("label") is not None and ev.get("label") is None:
+        ev["label"] = old["label"]
+    EVENTS[eid] = ev
+    return ev
+
+
+@app.websocket("/pi/ws")
+async def pi_ws(ws: WebSocket, token: str = "") -> None:
+    global PI_WS, PI_ONLINE, PI_INFO, PI_STATUS, PI_PAIR_CODE, LAST_FRAME
+    if not EXTERNAL:
+        await ws.close(code=4400)  # 내장 대본 모드에서는 받지 않음 (MOCK_EXTERNAL_PI=1 로 켜기)
+        return
+    if token not in DEVICES:
+        await ws.close(code=4401)
+        return
+    await ws.accept()
+    if PI_WS is not None:  # 목 서버는 기기 하나만. 새로 붙은 쪽이 이긴다
+        try:
+            await PI_WS.close(code=4409)
+        except RuntimeError:
+            pass
+    PI_WS = ws
+    print(f"  [pi] 연결됨: {DEVICES[token]['device_id']}", flush=True)
+    await send_viewers()
+    try:
+        while True:
+            msg = await ws.receive_json()
+            kind = msg.get("type")
+            if kind == "hello":
+                PI_INFO = msg.get("info") or PI_INFO
+                if isinstance(msg.get("settings"), dict):
+                    SETTINGS.clear()
+                    SETTINGS.update(msg["settings"])
+                PI_PAIR_CODE = str(msg.get("pair_code") or PI_PAIR_CODE or "")
+                PI_ONLINE = True
+                print(f"  [pi] hello: {PI_INFO and PI_INFO.get('name')} 페어링 코드 {PI_PAIR_CODE}", flush=True)
+            elif kind == "frame":
+                frame = {k: v for k, v in msg.items()}
+                frame["pi"] = "online"
+                LAST_FRAME = frame
+                await broadcast(frame)
+            elif kind == "event":
+                ev = store_pi_event(dict(msg["event"]))
+                await broadcast({"type": "event", "event": summary(ev)})
+                if ev.get("kind") == "camera" and ev.get("situation") in SETTINGS.get("notify", []):
+                    print(f"  [push] 보낼 알림: {ev['situation']} (event {ev['id']}) → 폰 {len(PUSH_TOKENS)}대", flush=True)
+            elif kind == "status":
+                PI_STATUS = msg.get("status") if isinstance(msg.get("status"), dict) else \
+                    {k: v for k, v in msg.items() if k != "type"}
+            elif kind == "cmd_result":
+                fut = PENDING_CMDS.get(str(msg.get("id")))
+                if fut is not None and not fut.done():
+                    fut.set_result(msg)
+            # 모르는 type 은 무시 (앞으로 늘어날 수 있음)
+    except (WebSocketDisconnect, RuntimeError, ValueError):
+        pass
+    finally:
+        if PI_WS is ws:
+            PI_WS = None
+            PI_ONLINE = False
+            for fut in PENDING_CMDS.values():
+                if not fut.done():
+                    fut.set_exception(RuntimeError("pi disconnected"))
+            print("  [pi] 끊김", flush=True)
 
 
 def lan_ip() -> str:
@@ -525,7 +737,11 @@ def lan_ip() -> str:
 
 
 if __name__ == "__main__":
-    print(f"\n  가짜 라즈베리파이 서버  http://{lan_ip()}:{PORT}")
-    print(f"  페어링 코드: {PAIR_CODE}")
+    print(f"\n  가짜 클라우드  http://{lan_ip()}:{PORT}")
+    if EXTERNAL:
+        print("  바깥 파이 모드: 파이가 /pi/register → /pi/ws 로 붙으면 그 파이의 데이터를 앱에 준다")
+        print(f"  등록 비밀값(enroll_secret): {ENROLL_SECRET}   페어링 코드는 파이가 hello 로 알려 준다")
+    else:
+        print(f"  내장 대본 모드. 페어링 코드: {PAIR_CODE}")
     print(f"  Android 에뮬레이터에서는 http://10.0.2.2:{PORT}\n")
     uvicorn.run(app, host="0.0.0.0", port=PORT, log_level="warning")

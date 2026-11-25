@@ -213,28 +213,48 @@
 
 ### 9.3 파이 ↔ 클라우드
 
-- 등록: `POST /pi/register {"enroll_secret", "name"}` → `{"device_id", "device_token"}` (파이가 처음 한 번, `config.toml`에 저장).
-- 연결: `wss://<클라우드>/pi/ws?token=<device_token>`. 끊기면 1·2·4·8초 재시도. 붙으면 `hello`(이름·버전·모델·영역·페어링 코드·설정)를 보낸다.
-- 파이 → 클라우드 (JSON 텍스트, `type`으로 구분)
+목 서버의 바깥 파이 모드(`MOCK_EXTERNAL_PI=1`)가 클라우드 쪽을, `mock_server/fake_pi_client.py`가 파이 쪽을 이대로 구현해 두었다. 둘을 붙여 보면 순서를 그대로 확인할 수 있다.
 
-| type | 내용 | 언제 |
-| --- | --- | --- |
-| `hello` | `/api/info` + `/api/settings` 내용 + `pair_code` | 붙자마자 |
-| `frame` | 파이 `/ws/live`의 frame 그대로 | **앱이 보고 있을 때만** (`viewers` > 0) |
-| `event` | 이벤트 **상세 전체**(`track`, `behaviors` 포함) | 생길 때마다 (final 갱신 포함) |
-| `status` | `/api/status` 내용 | 10초마다 |
-| `cmd_result` | `{"id", "status": <HTTP 코드>, "body"}` | 명령 처리 후 |
+**등록** (파이가 처음 한 번, 받은 토큰은 파이 `config.toml` 등에 저장)
 
-- 클라우드 → 파이
+```json
+POST /pi/register   {"enroll_secret": "<팀이 나눠 준 값>", "name": "doorradar"}
+→ 200 {"device_id": "dev-3f9a1c", "device_token": "..."}      틀리면 401 bad_enroll_secret
+```
 
-| type | 내용 |
-| --- | --- |
-| `viewers` | `{"count": n}`. 0이면 프레임을 안 보낸다 (데이터·비용 절약) |
-| `cmd` | `{"id", "method", "path", "body"}`. 파이는 자기 API를 그대로 불러 결과를 `cmd_result`로 돌려준다 (`PUT /api/settings`, `POST /api/radar/reconnect`, `POST /api/events/{id}/label`) |
-| `photo_request` | `{"ids": [...]}`. 해당 사진을 다시 올림 |
+**연결**: `wss://<클라우드>/pi/ws?token=<device_token>`. 토큰이 틀리면 핸드셰이크 거절. 끊기면 1·2·4·8초(이후 8초) 재시도.
+붙자마자 `hello`를 보낸다. 클라우드는 `hello`를 받아야 그 파이를 online으로 보고, 앱의 페어링 코드도 여기서 안다.
 
-- 사진 올리기: `POST /pi/photos/{event_id}` (`image/jpeg`, `?thumb=1`이면 썸네일), `Authorization: Bearer <device_token>`.
-- 파이 쪽은 **기존 파이 서버를 고치지 않고** 옆에 클라우드 클라이언트를 붙이는 방식으로 만들 수 있다(로컬 `/ws/live`를 구독해 올리고, `cmd`는 로컬 API로 전달).
+**파이 → 클라우드** (JSON 텍스트, `type`으로 구분. 모르는 `type`은 서로 무시)
+
+```json
+{"type": "hello", "info": {/* 파이 GET /api/info 그대로 */}, "settings": {/* GET /api/settings 그대로 */}, "pair_code": "482913"}
+{"type": "frame", "t": "...", "radar": "ok", "people": [...]}          // 파이 /ws/live 의 frame 그대로 (viewers > 0 일 때만)
+{"type": "event", "event": {/* GET /api/events/{id} 그대로: track·behaviors 포함 */}}   // 생길 때마다, final 갱신도 같은 id 로
+{"type": "status", "status": {/* GET /api/status 그대로 */}}           // 10초마다
+{"type": "cmd_result", "id": "a1b2", "status": 200, "body": {/* 파이 API 응답 본문 */}}
+```
+
+- 이벤트 `id`는 **파이의 id를 그대로** 쓴다. 클라우드는 id로 덮어쓰고, 앱이 붙인 `label`은 유지한다.
+- 사진이 있는 `camera` 이벤트는 **사진을 먼저 올리고 나서** `event`를 보낸다(앱이 이벤트를 받자마자 사진을 받으러 오므로).
+- 설정이 바뀌면(파이에서 직접 바꾼 경우 포함) `hello`를 다시 보내도 된다. 클라우드는 마지막 `hello`의 `settings`를 쓴다.
+
+**클라우드 → 파이**
+
+```json
+{"type": "viewers", "count": 1}                          // 앱 /ws/live 연결 수. 0이면 frame 을 보내지 않는다 (데이터·비용 절약)
+{"type": "cmd", "id": "a1b2", "method": "PUT", "path": "/api/settings", "body": {"camera_on": false}}
+{"type": "photo_request", "ids": [128, 131]}             // 이 사진들을 다시 올려 달라 (클라우드에서 지운 뒤 늦게 연 폰)
+```
+
+- `cmd`는 세 가지뿐이다: `PUT /api/settings`, `POST /api/radar/reconnect`, `POST /api/events/{id}/label`. 파이는 **자기 로컬 API를 그대로 불러** HTTP 코드와 본문을 `cmd_result`로 돌려준다. 클라우드는 그 결과를 앱에 그대로 준다(오류 본문 `{"error", "message"}` 포함).
+- 클라우드는 5초 안에 `cmd_result`가 없으면 앱에 504 `pi_timeout`, 파이가 끊겨 있으면 503 `pi_offline`.
+
+**사진 올리기**: `POST /pi/photos/{event_id}` (본문 `image/jpeg`, `?thumb=1`이면 320×180 썸네일), `Authorization: Bearer <device_token>`. 원본과 썸네일을 각각 올린다.
+
+**파이 쪽 구현 방법**: 기존 파이 서버는 고치지 않고 옆에 클라이언트 프로세스를 하나 붙인다.
+로컬 `ws://127.0.0.1:8080/ws/live`(로컬 토큰)를 구독해 `frame`·`event`를 올리고(event는 `GET /api/events/{id}`로 상세를 받아서),
+`GET /api/status`를 10초마다 올리고, `cmd`는 로컬 API로 전달한다. 사진은 로컬 `GET /api/events/{id}/photo`로 받아 그대로 올린다.
 
 ### 9.4 푸시 (FCM)
 

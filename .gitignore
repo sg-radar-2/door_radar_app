@@ -38,3 +38,4 @@ Thumbs.db
 
 # 목 서버가 남기는 토큰·이벤트 id
 mock_server/mock_state.json
+mock_server/fake_pi_token.txt

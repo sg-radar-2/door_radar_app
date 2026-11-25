@@ -14,7 +14,7 @@
 
 - Windows + PowerShell. 명령은 PowerShell 기준으로 쓴다(`;`로 잇기, 경로 `\`).
 - 처음이면 `powershell -ExecutionPolicy Bypass -File .\setup.ps1` (flutter create, 패키지 추가, Manifest 패치).
-- 클라우드·파이 없이 개발할 때는 `mock_server/`의 가짜 클라우드를 쓴다. 앱이 붙는 주소는 빌드 설정 `--dart-define=CLOUD_URL=...`이고, 안 주면 에뮬레이터용 `http://10.0.2.2:8080`(실제 폰은 `CLOUD_URL=http://<PC IP>:8080`).
+- 클라우드·파이 없이 개발할 때는 `mock_server/`의 가짜 클라우드를 쓴다. 앱이 붙는 주소는 빌드 설정 `--dart-define=CLOUD_URL=...`이고, 안 주면 실제 클라우드 `https://rad2-cloud.onrender.com`. 목 서버는 에뮬레이터 `CLOUD_URL=http://10.0.2.2:8080`, 실제 폰 `CLOUD_URL=http://<PC IP>:8080`.
 - 끝내기 전에 `flutter analyze`(경고 0)와 `flutter test`를 통과시킨다.
 
 ## 스택 (바꾸지 않는다)
