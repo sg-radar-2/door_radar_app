@@ -8,10 +8,15 @@ abstract final class Situations {
   static bool isAbnormal(String s) => abnormal.contains(s);
 }
 
+/// 앱이 붙는 클라우드 (SPEC 9장). 빌드할 때 `--dart-define=CLOUD_URL=https://...` 로 정한다.
+/// 안 정하면 에뮬레이터에서 PC 의 목 서버(`mock_server/`).
+abstract final class CloudServer {
+  static const url = String.fromEnvironment('CLOUD_URL', defaultValue: 'http://10.0.2.2:8080');
+}
+
+/// 클라우드가 그대로 흉내 내는 파이 API 의 값들
 abstract final class PiServer {
-  static const port = 8080;
-  static const mdnsType = '_doorradar._tcp';
-  static const defaultHost = 'rad2pi.local'; // 파이 호스트 이름 rad2pi (mDNS 서비스 이름은 doorradar)
+  static const port = 8080; // scheme 없이 쓴 주소의 기본 포트 (목 서버)
   static const maxEventsLimit = 500; // /api/events?limit= 최댓값
   static const reconnectDelays = [1, 2, 4, 8]; // 초, 마지막 값을 계속 반복
 }

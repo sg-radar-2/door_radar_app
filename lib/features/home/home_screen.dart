@@ -145,11 +145,14 @@ class _StatusChips extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final link = ref.watch(connectionProvider.select((c) => c.status));
     final radar = ref.watch(liveProvider.select((l) => l.radar));
+    final piOffline = ref.watch(liveProvider.select((l) => l.piOffline));
     final status = ref.watch(deviceStatusProvider);
 
     final chips = <Widget>[
       if (link != LinkStatus.connected)
         StatusChip(label: link.label, ok: false)
+      else if (piOffline)
+        const StatusChip(label: piOfflineLabel, ok: false)
       else ...[
         StatusChip(label: radarLabel(radar ?? status?.radar), ok: (radar ?? status?.radar) == 'ok'),
         if (status != null) StatusChip(label: cameraLabel(status.camera), ok: status.cameraOk),
@@ -321,6 +324,9 @@ class _MapCard extends ConsumerWidget {
     if (!linked) {
       overlay = conn.status == LinkStatus.retrying ? '다시 연결하는 중' : conn.status.label;
       overlaySub = conn.retryIn == null ? null : '${conn.retryIn!.inSeconds}초 뒤 다시 시도';
+    } else if (live.piOffline) {
+      overlay = piOfflineLabel;
+      overlaySub = piOfflineHint;
     } else if (live.hasFrame && !live.radarOk) {
       overlay = radarLabel(live.radar);
       overlaySub = '파이가 레이더에 다시 연결하고 있어요';

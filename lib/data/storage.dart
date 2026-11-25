@@ -40,7 +40,7 @@ class MemoryKv implements KeyValueStore {
   Future<void> delete(String key) async => values.remove(key);
 }
 
-/// 저장된 연결 정보. 토큰이 없어도 마지막 기기 주소는 남겨서 연결 화면 입력칸을 채운다.
+/// 저장된 연결 정보. [device] 는 늘 클라우드 주소(빌드 설정)이고, 토큰이 있으면 바로 홈으로 간다.
 class SavedSession {
   const SavedSession({this.device, this.token});
 
@@ -51,22 +51,30 @@ class SavedSession {
   bool get isPaired => device != null && token != null && token!.isNotEmpty;
 }
 
-/// 토큰·마지막 기기 주소. 앱이 다시 켜져도 자동으로 붙도록(SPEC P0).
+/// 토큰과 페어링한 파이 이름. 앱이 다시 켜져도 자동으로 붙도록(SPEC P0).
+/// 서버 주소는 빌드 때 정해지므로(SPEC 9장) 저장하지 않고, 토큰을 받은 서버만 적어 둔다.
+/// 빌드의 서버가 바뀌면(개발 ↔ 실제) 예전 토큰은 버린다.
 class AppStorage {
-  AppStorage(this._kv);
+  AppStorage(this._kv, {PiDevice? server}) : server = server ?? PiDevice.cloud;
 
   final KeyValueStore _kv;
 
+  /// 지금 빌드가 붙는 서버
+  final PiDevice server;
+
   static const _kToken = 'pi_token';
-  static const _kAddress = 'pi_address'; // "host" 또는 "host:port"
+  static const _kAddress = 'pi_address'; // 토큰을 받은 서버 주소
   static const _kName = 'pi_name';
 
   Future<SavedSession> load() async {
     final address = await _kv.read(_kAddress);
     final name = await _kv.read(_kName);
     final token = await _kv.read(_kToken);
-    final parsed = address == null ? null : PiDevice.tryParse(address);
-    return SavedSession(device: parsed?.copyWith(name: name), token: token);
+    final sameServer = address == server.address;
+    return SavedSession(
+      device: server.copyWith(name: sameServer ? name : null),
+      token: sameServer ? token : null,
+    );
   }
 
   Future<void> save(PiDevice device, String token) async {
@@ -79,10 +87,10 @@ class AppStorage {
     await _kv.write(_kToken, token);
   }
 
-  /// 토큰만 지운다(연결 해제, 토큰 거절). 마지막 주소는 남긴다.
+  /// 토큰만 지운다(토큰 거절).
   Future<void> clearToken() => _kv.delete(_kToken);
 
-  /// 연결 해제: 토큰과 마지막 기기까지 지운다. (폰에 보관한 사진·보관 기간은 남긴다)
+  /// 연결 해제: 토큰과 파이 이름을 지운다. (폰에 보관한 사진·보관 기간은 남긴다)
   Future<void> clearDevice() async {
     await _kv.delete(_kToken);
     await _kv.delete(_kAddress);

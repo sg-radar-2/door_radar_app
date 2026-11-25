@@ -62,7 +62,7 @@ class LiveSocket {
     List<int> delaysSec = PiServer.reconnectDelays,
     Duration readyTimeout = const Duration(seconds: 5),
     this.frameTimeout = const Duration(seconds: 2),
-  })  : uri = device.baseUri.replace(scheme: 'ws', path: '/ws/live', queryParameters: {'token': token}),
+  })  : uri = device.baseUri.replace(scheme: device.wsScheme, path: '/ws/live', queryParameters: {'token': token}),
         _connector = connector ?? WebSocketChannel.connect,
         _delays = delaysSec.map((s) => Duration(seconds: s)).toList(),
         _readyTimeout = readyTimeout;

@@ -60,7 +60,7 @@ void main() {
     final frames = <LiveFrame>[];
     notifier.messages.whereType<LiveFrameMessage>().listen((m) => frames.add(m.frame));
 
-    await notifier.pair(device!, code);
+    await notifier.pair(code);
     expect(kv.values['pi_token'], isNotNull);
 
     final end = DateTime.now().add(const Duration(seconds: 5));

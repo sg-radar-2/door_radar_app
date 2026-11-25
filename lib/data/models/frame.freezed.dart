@@ -16,7 +16,8 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$LiveFrame {
 
- String get type; String get t; List<LivePerson> get people; String get radar;
+ String get type; String get t; List<LivePerson> get people; String get radar;/// 클라우드에서만 (SPEC 9.1): "online" | "offline". 파이가 클라우드에 안 붙어 있으면 offline.
+@JsonKey(includeIfNull: false) String? get pi;
 /// Create a copy of LiveFrame
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -30,20 +31,20 @@ $LiveFrameCopyWith<LiveFrame> get copyWith => _$LiveFrameCopyWithImpl<LiveFrame>
 @override
 bool operator ==(Object other) {
   final _this = this as LiveFrame;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveFrame&&(identical(other.type, _this.type) || other.type == _this.type)&&(identical(other.t, _this.t) || other.t == _this.t)&&const DeepCollectionEquality().equals(other.people, _this.people)&&(identical(other.radar, _this.radar) || other.radar == _this.radar));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveFrame&&(identical(other.type, _this.type) || other.type == _this.type)&&(identical(other.t, _this.t) || other.t == _this.t)&&const DeepCollectionEquality().equals(other.people, _this.people)&&(identical(other.radar, _this.radar) || other.radar == _this.radar)&&(identical(other.pi, _this.pi) || other.pi == _this.pi));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LiveFrame;
-  return Object.hash(runtimeType,_this.type,_this.t,const DeepCollectionEquality().hash(_this.people),_this.radar);
+  return Object.hash(runtimeType,_this.type,_this.t,const DeepCollectionEquality().hash(_this.people),_this.radar,_this.pi);
 }
 
 @override
 String toString() {
   final _this = this as LiveFrame;
-  return 'LiveFrame(type: ${_this.type}, t: ${_this.t}, people: ${_this.people}, radar: ${_this.radar})';
+  return 'LiveFrame(type: ${_this.type}, t: ${_this.t}, people: ${_this.people}, radar: ${_this.radar}, pi: ${_this.pi})';
 }
 
 
@@ -54,7 +55,7 @@ abstract mixin class $LiveFrameCopyWith<$Res>  {
   factory $LiveFrameCopyWith(LiveFrame value, $Res Function(LiveFrame) _then) = _$LiveFrameCopyWithImpl;
 @useResult
 $Res call({
- String type, String t, List<LivePerson> people, String radar
+ String type, String t, List<LivePerson> people, String radar,@JsonKey(includeIfNull: false) String? pi
 });
 
 
@@ -71,13 +72,14 @@ class _$LiveFrameCopyWithImpl<$Res>
 
 /// Create a copy of LiveFrame
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? type = null,Object? t = null,Object? people = null,Object? radar = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? type = null,Object? t = null,Object? people = null,Object? radar = null,Object? pi = freezed,}) {
   return _then(LiveFrame(
 type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
 as String,t: null == t ? _self.t : t // ignore: cast_nullable_to_non_nullable
 as String,people: null == people ? _self.people : people // ignore: cast_nullable_to_non_nullable
 as List<LivePerson>,radar: null == radar ? _self.radar : radar // ignore: cast_nullable_to_non_nullable
-as String,
+as String,pi: freezed == pi ? _self.pi : pi // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -162,10 +164,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String type,  String t,  List<LivePerson> people,  String radar)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String type,  String t,  List<LivePerson> people,  String radar, @JsonKey(includeIfNull: false)  String? pi)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LiveFrame() when $default != null:
-return $default(_that.type,_that.t,_that.people,_that.radar);case _:
+return $default(_that.type,_that.t,_that.people,_that.radar,_that.pi);case _:
   return orElse();
 
 }
@@ -183,10 +185,10 @@ return $default(_that.type,_that.t,_that.people,_that.radar);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String type,  String t,  List<LivePerson> people,  String radar)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String type,  String t,  List<LivePerson> people,  String radar, @JsonKey(includeIfNull: false)  String? pi)  $default,) {final _that = this;
 switch (_that) {
 case _LiveFrame():
-return $default(_that.type,_that.t,_that.people,_that.radar);case _:
+return $default(_that.type,_that.t,_that.people,_that.radar,_that.pi);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -203,10 +205,10 @@ return $default(_that.type,_that.t,_that.people,_that.radar);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String type,  String t,  List<LivePerson> people,  String radar)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String type,  String t,  List<LivePerson> people,  String radar, @JsonKey(includeIfNull: false)  String? pi)?  $default,) {final _that = this;
 switch (_that) {
 case _LiveFrame() when $default != null:
-return $default(_that.type,_that.t,_that.people,_that.radar);case _:
+return $default(_that.type,_that.t,_that.people,_that.radar,_that.pi);case _:
   return null;
 
 }
@@ -218,7 +220,7 @@ return $default(_that.type,_that.t,_that.people,_that.radar);case _:
 @JsonSerializable()
 
 class _LiveFrame extends LiveFrame {
-  const _LiveFrame({this.type = 'frame', required this.t,  List<LivePerson> people = const <LivePerson>[], required this.radar}): _people = people,super._();
+  const _LiveFrame({this.type = 'frame', required this.t,  List<LivePerson> people = const <LivePerson>[], required this.radar, @JsonKey(includeIfNull: false) this.pi}): _people = people,super._();
   factory _LiveFrame.fromJson(Map<String, dynamic> json) => _$LiveFrameFromJson(json);
 
 @override@JsonKey() final  String type;
@@ -231,6 +233,8 @@ class _LiveFrame extends LiveFrame {
 }
 
 @override final  String radar;
+/// 클라우드에서만 (SPEC 9.1): "online" | "offline". 파이가 클라우드에 안 붙어 있으면 offline.
+@override@JsonKey(includeIfNull: false) final  String? pi;
 
 /// Create a copy of LiveFrame
 /// with the given fields replaced by the non-null parameter values.
@@ -245,18 +249,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveFrame&&(identical(other.type, type) || other.type == type)&&(identical(other.t, t) || other.t == t)&&const DeepCollectionEquality().equals(other.people, _people)&&(identical(other.radar, radar) || other.radar == radar));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveFrame&&(identical(other.type, type) || other.type == type)&&(identical(other.t, t) || other.t == t)&&const DeepCollectionEquality().equals(other.people, _people)&&(identical(other.radar, radar) || other.radar == radar)&&(identical(other.pi, pi) || other.pi == pi));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,type,t,const DeepCollectionEquality().hash(_people),radar);
+    return Object.hash(runtimeType,type,t,const DeepCollectionEquality().hash(_people),radar,pi);
 }
 
 @override
 String toString() {
-    return 'LiveFrame(type: $type, t: $t, people: $people, radar: $radar)';
+    return 'LiveFrame(type: $type, t: $t, people: $people, radar: $radar, pi: $pi)';
 }
 
 
@@ -267,7 +271,7 @@ abstract mixin class _$LiveFrameCopyWith<$Res> implements $LiveFrameCopyWith<$Re
   factory _$LiveFrameCopyWith(_LiveFrame value, $Res Function(_LiveFrame) _then) = __$LiveFrameCopyWithImpl;
 @override @useResult
 $Res call({
- String type, String t, List<LivePerson> people, String radar
+ String type, String t, List<LivePerson> people, String radar,@JsonKey(includeIfNull: false) String? pi
 });
 
 
@@ -284,13 +288,14 @@ class __$LiveFrameCopyWithImpl<$Res>
 
 /// Create a copy of LiveFrame
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? type = null,Object? t = null,Object? people = null,Object? radar = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? type = null,Object? t = null,Object? people = null,Object? radar = null,Object? pi = freezed,}) {
   return _then(_LiveFrame(
 type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
 as String,t: null == t ? _self.t : t // ignore: cast_nullable_to_non_nullable
 as String,people: null == people ? _self._people : people // ignore: cast_nullable_to_non_nullable
 as List<LivePerson>,radar: null == radar ? _self.radar : radar // ignore: cast_nullable_to_non_nullable
-as String,
+as String,pi: freezed == pi ? _self.pi : pi // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 

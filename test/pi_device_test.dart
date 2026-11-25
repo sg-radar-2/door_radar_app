@@ -18,7 +18,7 @@ void main() {
     });
 
     test('잘못된 입력은 null', () {
-      for (final s in ['', '   ', 'https://10.0.0.1', '10.0.0.1/api', 'a b', '10.0.0.1:99999', 'http://']) {
+      for (final s in ['', '   ', 'ws://10.0.0.1', '10.0.0.1/api', 'a b', '10.0.0.1:99999', 'http://']) {
         expect(PiDevice.tryParse(s), isNull, reason: s);
       }
     });

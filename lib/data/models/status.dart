@@ -25,12 +25,16 @@ abstract class DeviceStatus with _$DeviceStatus {
     String? cameraBackend,
     String? judgeError,
     int? pendingPhotos,
+
+    // 클라우드에서만 (SPEC 9.1): "online" | "offline"
+    @JsonKey(includeIfNull: false) String? pi,
   }) = _DeviceStatus;
 
   factory DeviceStatus.fromJson(Map<String, Object?> json) => _$DeviceStatusFromJson(json);
 
   bool get radarOk => radar == 'ok';
   bool get cameraOk => camera == 'ok';
+  bool get piOffline => pi == 'offline';
 }
 
 @freezed

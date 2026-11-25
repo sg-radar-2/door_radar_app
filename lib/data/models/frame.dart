@@ -13,6 +13,9 @@ abstract class LiveFrame with _$LiveFrame {
     required String t,
     @Default(<LivePerson>[]) List<LivePerson> people,
     required String radar, // "ok" 이면 레이더 정상
+
+    /// 클라우드에서만 (SPEC 9.1): "online" | "offline". 파이가 클라우드에 안 붙어 있으면 offline.
+    @JsonKey(includeIfNull: false) String? pi,
   }) = _LiveFrame;
 
   factory LiveFrame.fromJson(Map<String, Object?> json) => _$LiveFrameFromJson(json);

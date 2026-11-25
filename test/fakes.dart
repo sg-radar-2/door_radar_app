@@ -5,7 +5,6 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:door_radar_app/data/api/live_socket.dart';
 import 'package:door_radar_app/data/api/pi_api.dart';
-import 'package:door_radar_app/data/discovery.dart';
 import 'package:door_radar_app/data/models/models.dart';
 import 'package:door_radar_app/data/notifications.dart';
 
@@ -120,25 +119,3 @@ Map<String, Object?> cameraEventJson(int id, String person, String t, {String si
         'photo': photo, 't': t, 'started_at': t, 'ended_at': null, 'label': null,
       },
     };
-/// mDNS 없이 찾은 기기를 직접 넣는다
-class FakeDiscovery implements DeviceDiscovery {
-  FakeDiscovery({this.fail = false});
-
-  final bool fail;
-  final _out = StreamController<List<FoundDevice>>.broadcast();
-  int starts = 0;
-
-  void found(List<FoundDevice> list) => _out.add(list);
-
-  @override
-  Stream<List<FoundDevice>> get devices => _out.stream;
-
-  @override
-  Future<void> start() async {
-    starts++;
-    if (fail) throw StateError('mDNS 없음');
-  }
-
-  @override
-  Future<void> stop() async {}
-}

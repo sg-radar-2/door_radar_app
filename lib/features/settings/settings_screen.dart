@@ -369,12 +369,14 @@ class _DeviceSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final conn = ref.watch(connectionProvider);
     final status = ref.watch(deviceStatusProvider);
-    final name = conn.info?.host ?? conn.device?.address ?? '-';
+    final name = conn.info?.host ?? conn.info?.name ?? conn.device?.name ?? '-';
     final word = conn.status != LinkStatus.connected
         ? conn.status.label
-        : status == null || (status.radarOk && status.cameraOk)
-            ? '정상'
-            : '확인 필요';
+        : status != null && status.piOffline
+            ? piOfflineLabel
+            : status == null || (status.radarOk && status.cameraOk)
+                ? '정상'
+                : '확인 필요';
 
     return _Section(
       label: '기기',

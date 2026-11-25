@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$DeviceStatus {
 
- String get radar; String get camera; double get frameRate; double? get latencyS; double? get cpuTempC; int? get uptimeS; StorageInfo get storage; String? get radarHost; String? get radarError; String? get cameraBackend; String? get judgeError; int? get pendingPhotos;
+ String get radar; String get camera; double get frameRate; double? get latencyS; double? get cpuTempC; int? get uptimeS; StorageInfo get storage; String? get radarHost; String? get radarError; String? get cameraBackend; String? get judgeError; int? get pendingPhotos;@JsonKey(includeIfNull: false) String? get pi;
 /// Create a copy of DeviceStatus
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -30,20 +30,20 @@ $DeviceStatusCopyWith<DeviceStatus> get copyWith => _$DeviceStatusCopyWithImpl<D
 @override
 bool operator ==(Object other) {
   final _this = this as DeviceStatus;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is DeviceStatus&&(identical(other.radar, _this.radar) || other.radar == _this.radar)&&(identical(other.camera, _this.camera) || other.camera == _this.camera)&&(identical(other.frameRate, _this.frameRate) || other.frameRate == _this.frameRate)&&(identical(other.latencyS, _this.latencyS) || other.latencyS == _this.latencyS)&&(identical(other.cpuTempC, _this.cpuTempC) || other.cpuTempC == _this.cpuTempC)&&(identical(other.uptimeS, _this.uptimeS) || other.uptimeS == _this.uptimeS)&&(identical(other.storage, _this.storage) || other.storage == _this.storage)&&(identical(other.radarHost, _this.radarHost) || other.radarHost == _this.radarHost)&&(identical(other.radarError, _this.radarError) || other.radarError == _this.radarError)&&(identical(other.cameraBackend, _this.cameraBackend) || other.cameraBackend == _this.cameraBackend)&&(identical(other.judgeError, _this.judgeError) || other.judgeError == _this.judgeError)&&(identical(other.pendingPhotos, _this.pendingPhotos) || other.pendingPhotos == _this.pendingPhotos));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is DeviceStatus&&(identical(other.radar, _this.radar) || other.radar == _this.radar)&&(identical(other.camera, _this.camera) || other.camera == _this.camera)&&(identical(other.frameRate, _this.frameRate) || other.frameRate == _this.frameRate)&&(identical(other.latencyS, _this.latencyS) || other.latencyS == _this.latencyS)&&(identical(other.cpuTempC, _this.cpuTempC) || other.cpuTempC == _this.cpuTempC)&&(identical(other.uptimeS, _this.uptimeS) || other.uptimeS == _this.uptimeS)&&(identical(other.storage, _this.storage) || other.storage == _this.storage)&&(identical(other.radarHost, _this.radarHost) || other.radarHost == _this.radarHost)&&(identical(other.radarError, _this.radarError) || other.radarError == _this.radarError)&&(identical(other.cameraBackend, _this.cameraBackend) || other.cameraBackend == _this.cameraBackend)&&(identical(other.judgeError, _this.judgeError) || other.judgeError == _this.judgeError)&&(identical(other.pendingPhotos, _this.pendingPhotos) || other.pendingPhotos == _this.pendingPhotos)&&(identical(other.pi, _this.pi) || other.pi == _this.pi));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as DeviceStatus;
-  return Object.hash(runtimeType,_this.radar,_this.camera,_this.frameRate,_this.latencyS,_this.cpuTempC,_this.uptimeS,_this.storage,_this.radarHost,_this.radarError,_this.cameraBackend,_this.judgeError,_this.pendingPhotos);
+  return Object.hash(runtimeType,_this.radar,_this.camera,_this.frameRate,_this.latencyS,_this.cpuTempC,_this.uptimeS,_this.storage,_this.radarHost,_this.radarError,_this.cameraBackend,_this.judgeError,_this.pendingPhotos,_this.pi);
 }
 
 @override
 String toString() {
   final _this = this as DeviceStatus;
-  return 'DeviceStatus(radar: ${_this.radar}, camera: ${_this.camera}, frameRate: ${_this.frameRate}, latencyS: ${_this.latencyS}, cpuTempC: ${_this.cpuTempC}, uptimeS: ${_this.uptimeS}, storage: ${_this.storage}, radarHost: ${_this.radarHost}, radarError: ${_this.radarError}, cameraBackend: ${_this.cameraBackend}, judgeError: ${_this.judgeError}, pendingPhotos: ${_this.pendingPhotos})';
+  return 'DeviceStatus(radar: ${_this.radar}, camera: ${_this.camera}, frameRate: ${_this.frameRate}, latencyS: ${_this.latencyS}, cpuTempC: ${_this.cpuTempC}, uptimeS: ${_this.uptimeS}, storage: ${_this.storage}, radarHost: ${_this.radarHost}, radarError: ${_this.radarError}, cameraBackend: ${_this.cameraBackend}, judgeError: ${_this.judgeError}, pendingPhotos: ${_this.pendingPhotos}, pi: ${_this.pi})';
 }
 
 
@@ -54,7 +54,7 @@ abstract mixin class $DeviceStatusCopyWith<$Res>  {
   factory $DeviceStatusCopyWith(DeviceStatus value, $Res Function(DeviceStatus) _then) = _$DeviceStatusCopyWithImpl;
 @useResult
 $Res call({
- String radar, String camera, double frameRate, double? latencyS, double? cpuTempC, int? uptimeS, StorageInfo storage, String? radarHost, String? radarError, String? cameraBackend, String? judgeError, int? pendingPhotos
+ String radar, String camera, double frameRate, double? latencyS, double? cpuTempC, int? uptimeS, StorageInfo storage, String? radarHost, String? radarError, String? cameraBackend, String? judgeError, int? pendingPhotos,@JsonKey(includeIfNull: false) String? pi
 });
 
 
@@ -71,7 +71,7 @@ class _$DeviceStatusCopyWithImpl<$Res>
 
 /// Create a copy of DeviceStatus
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? radar = null,Object? camera = null,Object? frameRate = null,Object? latencyS = freezed,Object? cpuTempC = freezed,Object? uptimeS = freezed,Object? storage = null,Object? radarHost = freezed,Object? radarError = freezed,Object? cameraBackend = freezed,Object? judgeError = freezed,Object? pendingPhotos = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? radar = null,Object? camera = null,Object? frameRate = null,Object? latencyS = freezed,Object? cpuTempC = freezed,Object? uptimeS = freezed,Object? storage = null,Object? radarHost = freezed,Object? radarError = freezed,Object? cameraBackend = freezed,Object? judgeError = freezed,Object? pendingPhotos = freezed,Object? pi = freezed,}) {
   return _then(DeviceStatus(
 radar: null == radar ? _self.radar : radar // ignore: cast_nullable_to_non_nullable
 as String,camera: null == camera ? _self.camera : camera // ignore: cast_nullable_to_non_nullable
@@ -85,7 +85,8 @@ as String?,radarError: freezed == radarError ? _self.radarError : radarError // 
 as String?,cameraBackend: freezed == cameraBackend ? _self.cameraBackend : cameraBackend // ignore: cast_nullable_to_non_nullable
 as String?,judgeError: freezed == judgeError ? _self.judgeError : judgeError // ignore: cast_nullable_to_non_nullable
 as String?,pendingPhotos: freezed == pendingPhotos ? _self.pendingPhotos : pendingPhotos // ignore: cast_nullable_to_non_nullable
-as int?,
+as int?,pi: freezed == pi ? _self.pi : pi // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 /// Create a copy of DeviceStatus
@@ -179,10 +180,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String radar,  String camera,  double frameRate,  double? latencyS,  double? cpuTempC,  int? uptimeS,  StorageInfo storage,  String? radarHost,  String? radarError,  String? cameraBackend,  String? judgeError,  int? pendingPhotos)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String radar,  String camera,  double frameRate,  double? latencyS,  double? cpuTempC,  int? uptimeS,  StorageInfo storage,  String? radarHost,  String? radarError,  String? cameraBackend,  String? judgeError,  int? pendingPhotos, @JsonKey(includeIfNull: false)  String? pi)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _DeviceStatus() when $default != null:
-return $default(_that.radar,_that.camera,_that.frameRate,_that.latencyS,_that.cpuTempC,_that.uptimeS,_that.storage,_that.radarHost,_that.radarError,_that.cameraBackend,_that.judgeError,_that.pendingPhotos);case _:
+return $default(_that.radar,_that.camera,_that.frameRate,_that.latencyS,_that.cpuTempC,_that.uptimeS,_that.storage,_that.radarHost,_that.radarError,_that.cameraBackend,_that.judgeError,_that.pendingPhotos,_that.pi);case _:
   return orElse();
 
 }
@@ -200,10 +201,10 @@ return $default(_that.radar,_that.camera,_that.frameRate,_that.latencyS,_that.cp
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String radar,  String camera,  double frameRate,  double? latencyS,  double? cpuTempC,  int? uptimeS,  StorageInfo storage,  String? radarHost,  String? radarError,  String? cameraBackend,  String? judgeError,  int? pendingPhotos)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String radar,  String camera,  double frameRate,  double? latencyS,  double? cpuTempC,  int? uptimeS,  StorageInfo storage,  String? radarHost,  String? radarError,  String? cameraBackend,  String? judgeError,  int? pendingPhotos, @JsonKey(includeIfNull: false)  String? pi)  $default,) {final _that = this;
 switch (_that) {
 case _DeviceStatus():
-return $default(_that.radar,_that.camera,_that.frameRate,_that.latencyS,_that.cpuTempC,_that.uptimeS,_that.storage,_that.radarHost,_that.radarError,_that.cameraBackend,_that.judgeError,_that.pendingPhotos);case _:
+return $default(_that.radar,_that.camera,_that.frameRate,_that.latencyS,_that.cpuTempC,_that.uptimeS,_that.storage,_that.radarHost,_that.radarError,_that.cameraBackend,_that.judgeError,_that.pendingPhotos,_that.pi);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -220,10 +221,10 @@ return $default(_that.radar,_that.camera,_that.frameRate,_that.latencyS,_that.cp
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String radar,  String camera,  double frameRate,  double? latencyS,  double? cpuTempC,  int? uptimeS,  StorageInfo storage,  String? radarHost,  String? radarError,  String? cameraBackend,  String? judgeError,  int? pendingPhotos)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String radar,  String camera,  double frameRate,  double? latencyS,  double? cpuTempC,  int? uptimeS,  StorageInfo storage,  String? radarHost,  String? radarError,  String? cameraBackend,  String? judgeError,  int? pendingPhotos, @JsonKey(includeIfNull: false)  String? pi)?  $default,) {final _that = this;
 switch (_that) {
 case _DeviceStatus() when $default != null:
-return $default(_that.radar,_that.camera,_that.frameRate,_that.latencyS,_that.cpuTempC,_that.uptimeS,_that.storage,_that.radarHost,_that.radarError,_that.cameraBackend,_that.judgeError,_that.pendingPhotos);case _:
+return $default(_that.radar,_that.camera,_that.frameRate,_that.latencyS,_that.cpuTempC,_that.uptimeS,_that.storage,_that.radarHost,_that.radarError,_that.cameraBackend,_that.judgeError,_that.pendingPhotos,_that.pi);case _:
   return null;
 
 }
@@ -235,7 +236,7 @@ return $default(_that.radar,_that.camera,_that.frameRate,_that.latencyS,_that.cp
 @JsonSerializable()
 
 class _DeviceStatus extends DeviceStatus {
-  const _DeviceStatus({required this.radar, required this.camera, required this.frameRate, this.latencyS, this.cpuTempC, this.uptimeS, required this.storage, this.radarHost, this.radarError, this.cameraBackend, this.judgeError, this.pendingPhotos}): super._();
+  const _DeviceStatus({required this.radar, required this.camera, required this.frameRate, this.latencyS, this.cpuTempC, this.uptimeS, required this.storage, this.radarHost, this.radarError, this.cameraBackend, this.judgeError, this.pendingPhotos, @JsonKey(includeIfNull: false) this.pi}): super._();
   factory _DeviceStatus.fromJson(Map<String, dynamic> json) => _$DeviceStatusFromJson(json);
 
 @override final  String radar;
@@ -250,6 +251,7 @@ class _DeviceStatus extends DeviceStatus {
 @override final  String? cameraBackend;
 @override final  String? judgeError;
 @override final  int? pendingPhotos;
+@override@JsonKey(includeIfNull: false) final  String? pi;
 
 /// Create a copy of DeviceStatus
 /// with the given fields replaced by the non-null parameter values.
@@ -264,18 +266,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _DeviceStatus&&(identical(other.radar, radar) || other.radar == radar)&&(identical(other.camera, camera) || other.camera == camera)&&(identical(other.frameRate, frameRate) || other.frameRate == frameRate)&&(identical(other.latencyS, latencyS) || other.latencyS == latencyS)&&(identical(other.cpuTempC, cpuTempC) || other.cpuTempC == cpuTempC)&&(identical(other.uptimeS, uptimeS) || other.uptimeS == uptimeS)&&(identical(other.storage, storage) || other.storage == storage)&&(identical(other.radarHost, radarHost) || other.radarHost == radarHost)&&(identical(other.radarError, radarError) || other.radarError == radarError)&&(identical(other.cameraBackend, cameraBackend) || other.cameraBackend == cameraBackend)&&(identical(other.judgeError, judgeError) || other.judgeError == judgeError)&&(identical(other.pendingPhotos, pendingPhotos) || other.pendingPhotos == pendingPhotos));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _DeviceStatus&&(identical(other.radar, radar) || other.radar == radar)&&(identical(other.camera, camera) || other.camera == camera)&&(identical(other.frameRate, frameRate) || other.frameRate == frameRate)&&(identical(other.latencyS, latencyS) || other.latencyS == latencyS)&&(identical(other.cpuTempC, cpuTempC) || other.cpuTempC == cpuTempC)&&(identical(other.uptimeS, uptimeS) || other.uptimeS == uptimeS)&&(identical(other.storage, storage) || other.storage == storage)&&(identical(other.radarHost, radarHost) || other.radarHost == radarHost)&&(identical(other.radarError, radarError) || other.radarError == radarError)&&(identical(other.cameraBackend, cameraBackend) || other.cameraBackend == cameraBackend)&&(identical(other.judgeError, judgeError) || other.judgeError == judgeError)&&(identical(other.pendingPhotos, pendingPhotos) || other.pendingPhotos == pendingPhotos)&&(identical(other.pi, pi) || other.pi == pi));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,radar,camera,frameRate,latencyS,cpuTempC,uptimeS,storage,radarHost,radarError,cameraBackend,judgeError,pendingPhotos);
+    return Object.hash(runtimeType,radar,camera,frameRate,latencyS,cpuTempC,uptimeS,storage,radarHost,radarError,cameraBackend,judgeError,pendingPhotos,pi);
 }
 
 @override
 String toString() {
-    return 'DeviceStatus(radar: $radar, camera: $camera, frameRate: $frameRate, latencyS: $latencyS, cpuTempC: $cpuTempC, uptimeS: $uptimeS, storage: $storage, radarHost: $radarHost, radarError: $radarError, cameraBackend: $cameraBackend, judgeError: $judgeError, pendingPhotos: $pendingPhotos)';
+    return 'DeviceStatus(radar: $radar, camera: $camera, frameRate: $frameRate, latencyS: $latencyS, cpuTempC: $cpuTempC, uptimeS: $uptimeS, storage: $storage, radarHost: $radarHost, radarError: $radarError, cameraBackend: $cameraBackend, judgeError: $judgeError, pendingPhotos: $pendingPhotos, pi: $pi)';
 }
 
 
@@ -286,7 +288,7 @@ abstract mixin class _$DeviceStatusCopyWith<$Res> implements $DeviceStatusCopyWi
   factory _$DeviceStatusCopyWith(_DeviceStatus value, $Res Function(_DeviceStatus) _then) = __$DeviceStatusCopyWithImpl;
 @override @useResult
 $Res call({
- String radar, String camera, double frameRate, double? latencyS, double? cpuTempC, int? uptimeS, StorageInfo storage, String? radarHost, String? radarError, String? cameraBackend, String? judgeError, int? pendingPhotos
+ String radar, String camera, double frameRate, double? latencyS, double? cpuTempC, int? uptimeS, StorageInfo storage, String? radarHost, String? radarError, String? cameraBackend, String? judgeError, int? pendingPhotos,@JsonKey(includeIfNull: false) String? pi
 });
 
 
@@ -303,7 +305,7 @@ class __$DeviceStatusCopyWithImpl<$Res>
 
 /// Create a copy of DeviceStatus
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? radar = null,Object? camera = null,Object? frameRate = null,Object? latencyS = freezed,Object? cpuTempC = freezed,Object? uptimeS = freezed,Object? storage = null,Object? radarHost = freezed,Object? radarError = freezed,Object? cameraBackend = freezed,Object? judgeError = freezed,Object? pendingPhotos = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? radar = null,Object? camera = null,Object? frameRate = null,Object? latencyS = freezed,Object? cpuTempC = freezed,Object? uptimeS = freezed,Object? storage = null,Object? radarHost = freezed,Object? radarError = freezed,Object? cameraBackend = freezed,Object? judgeError = freezed,Object? pendingPhotos = freezed,Object? pi = freezed,}) {
   return _then(_DeviceStatus(
 radar: null == radar ? _self.radar : radar // ignore: cast_nullable_to_non_nullable
 as String,camera: null == camera ? _self.camera : camera // ignore: cast_nullable_to_non_nullable
@@ -317,7 +319,8 @@ as String?,radarError: freezed == radarError ? _self.radarError : radarError // 
 as String?,cameraBackend: freezed == cameraBackend ? _self.cameraBackend : cameraBackend // ignore: cast_nullable_to_non_nullable
 as String?,judgeError: freezed == judgeError ? _self.judgeError : judgeError // ignore: cast_nullable_to_non_nullable
 as String?,pendingPhotos: freezed == pendingPhotos ? _self.pendingPhotos : pendingPhotos // ignore: cast_nullable_to_non_nullable
-as int?,
+as int?,pi: freezed == pi ? _self.pi : pi // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 

@@ -1,7 +1,11 @@
-"""앱 개발용 가짜 라즈베리파이 서버.
+"""앱 개발용 가짜 클라우드(+ 그 뒤의 라즈베리파이) 서버.
 
-docs/SPEC.md 의 REST + WebSocket 명세를 그대로 흉내 낸다. 레이더·카메라 없이
-고정 이벤트와 대본대로 움직이는 사람(통과 → 방문 → 장시간 체류)을 돌려준다.
+앱은 클라우드를 통해서만 통신한다(docs/SPEC.md 9장). 클라우드는 파이 API(4·5·8장)를 그대로 제공하므로
+이 서버도 파이 API를 흉내 내고, 9.1의 클라우드 추가분(토큰으로 /api/info, pi online/offline,
+push_token, 503 pi_offline, 사진은 모든 폰이 받으면 지움)을 더한다.
+레이더·카메라 없이 고정 이벤트와 대본대로 움직이는 사람(통과 → 방문 → 장시간 체류)을 돌려준다.
+
+개발용: POST /mock/pi {"online": false} 로 파이가 끊긴 상황을 만든다 (true 로 되돌림).
 
 실행:
     pip install -r requirements.txt
@@ -47,6 +51,11 @@ STATE_FILE = Path(__file__).with_name("mock_state.json")  # 토큰·다음 이�
 
 TOKENS: set[str] = set()
 ACKED: dict[str, set[int]] = {}  # 토큰별로 받아 간 사진의 이벤트 id
+ACTIVE: set[str] = set()  # 이번에 켠 뒤 요청한 토큰 (= 지금 쓰는 폰). 사진은 이들이 모두 받으면 지운다
+DELETED_PHOTOS: set[int] = set()  # 클라우드에서 지운 사진 (파이에는 30일 남음)
+PUSH_TOKENS: dict[str, str] = {}  # 앱 토큰 → FCM 토큰 (목 서버는 보내지 않고 기록만)
+CLOUD_KEEP_DAYS = 7  # 아무도 안 받아도 이 기간이 지나면 클라우드에서 지움 (SPEC 9.2)
+PI_ONLINE = True  # 파이가 클라우드에 붙어 있는지 (POST /mock/pi 로 바꿈)
 CLIENTS: set[WebSocket] = set()
 STARTED = datetime.now(KST)
 
@@ -181,8 +190,20 @@ def scene_points(name: str) -> list[tuple[float, float]]:
 
 async def broadcast_frame(msg: dict[str, Any]) -> None:
     global LAST_FRAME
+    msg["pi"] = "online"
     LAST_FRAME = msg
     await broadcast(msg)
+
+
+def offline_frame() -> dict[str, Any]:
+    return {"type": "frame", "t": iso(now()), "radar": "disconnected", "pi": "offline", "people": []}
+
+
+async def wait_pi() -> None:
+    """파이가 끊겨 있으면 대본을 멈추고, 클라우드처럼 1초마다 offline 프레임을 보낸다 (SPEC 9.1)."""
+    while not PI_ONLINE:
+        await broadcast(offline_frame())
+        await asyncio.sleep(1)
 
 
 async def broadcast(msg: dict[str, Any]) -> None:
@@ -205,6 +226,7 @@ async def live_loop() -> None:
             camera_sent = False
             dwell_from: int | None = None
             for i, (x, y) in enumerate(pts):
+                await wait_pi()
                 elapsed = i * dt
                 situation, prob, abnormal = "판단 중", 0.0, False
                 if elapsed >= 2:
@@ -256,6 +278,7 @@ async def live_loop() -> None:
             }
             # 사람 없는 시간. final 은 실제 파이처럼 사라지고 3초 뒤에 나간다 (t 는 사라진 시각)
             for k in range(4 * FPS):
+                await wait_pi()
                 if k == 3 * FPS:
                     ev = add_event(final)
                     await broadcast({"type": "event", "event": summary(ev)})
@@ -287,7 +310,14 @@ def require_token(request: Request) -> str:
     token = auth[7:] if auth.lower().startswith("bearer ") else ""
     if token not in TOKENS:
         raise ApiError(401, "unauthorized", "토큰이 없거나 틀렸습니다. /api/pair 로 다시 페어링하세요.")
+    ACTIVE.add(token)
     return token
+
+
+def require_pi() -> None:
+    """파이에 전달해야 하는 요청 (SPEC 9.1): 파이가 끊겨 있으면 503."""
+    if not PI_ONLINE:
+        raise ApiError(503, "pi_offline", "기기가 꺼져 있거나 인터넷에 연결되지 않았어요.")
 
 
 def get_event(event_id: int) -> dict[str, Any]:
@@ -298,9 +328,31 @@ def get_event(event_id: int) -> dict[str, Any]:
 
 
 @app.get("/api/info")
-def info() -> dict[str, Any]:
+def info(request: Request) -> dict[str, Any]:
+    # 클라우드: 토큰이 있어야 어느 파이인지 안다. 없으면 클라우드 정보만 (SPEC 9.1)
+    auth = request.headers.get("authorization", "")
+    if auth[7:] not in TOKENS:
+        return {"name": "rad2-cloud", "version": "0.1.0-mock"}
     return {"name": "doorradar", "host": "rad2pi.local", "version": "0.1.0-mock",
             "model": "situation_trees_1111", "model_version": "v5", "region": SETTINGS["region"]}
+
+
+@app.post("/mock/pi")
+async def mock_pi(request: Request) -> dict[str, bool]:
+    """개발용: 파이가 클라우드에서 끊긴 상황 만들기 {"online": false}."""
+    global PI_ONLINE
+    PI_ONLINE = bool((await request.json()).get("online", True))
+    return {"online": PI_ONLINE}
+
+
+@app.put("/api/push_token")
+async def push_token(request: Request, token: str = Depends(require_token)) -> dict[str, bool]:
+    """FCM 토큰 등록 (SPEC 9.1). 목 서버는 기록만 하고 푸시는 보내지 않는다."""
+    fcm = (await request.json()).get("token")
+    if not isinstance(fcm, str) or not fcm:
+        raise ApiError(400, "bad_token", "token 은 FCM 토큰 문자열이어야 합니다.")
+    PUSH_TOKENS[token] = fcm
+    return {"ok": True}
 
 
 @app.post("/api/pair")
@@ -325,11 +377,13 @@ def status(token: str = Depends(require_token)) -> dict[str, Any]:
         "uptime_s": int((now() - STARTED).total_seconds()),
         "storage": {"used_gb": round(1.0 + photos * 0.0003, 2), "total_gb": 29.0, "photos": photos},
         "pending_photos": len(pending_ids(token)),
-    }
+        "pi": "online" if PI_ONLINE else "offline",
+    } | ({} if PI_ONLINE else {"radar": "disconnected"})
 
 
 @app.post("/api/radar/reconnect")
 def radar_reconnect(_: str = Depends(require_token)) -> dict[str, str]:
+    require_pi()
     return {"radar": "connecting"}
 
 
@@ -372,11 +426,14 @@ def event_photo(event_id: int, thumb: int = 0, _: str = Depends(require_token)) 
     ev = get_event(event_id)
     if not ev.get("photo"):
         raise ApiError(404, "no_photo", "이 이벤트에는 사진이 없습니다.")
+    if event_id in DELETED_PHOTOS:
+        raise ApiError(404, "no_photo", "모든 폰이 받아 가서 클라우드에서 지운 사진입니다.")
     return Response(render_photo(ev, bool(thumb)), media_type="image/jpeg")
 
 
 @app.post("/api/events/{event_id}/label")
 async def event_label(event_id: int, request: Request, _: str = Depends(require_token)) -> dict[str, Any]:
+    require_pi()
     ev = get_event(event_id)
     situation = (await request.json()).get("situation")
     if situation is None:  # 되돌리기: 정답 지우기
@@ -395,6 +452,7 @@ def get_settings(_: str = Depends(require_token)) -> dict[str, Any]:
 
 @app.put("/api/settings")
 async def put_settings(request: Request, _: str = Depends(require_token)) -> dict[str, Any]:
+    require_pi()
     body = await request.json()
     for key in body:
         if key in READ_ONLY_SETTINGS:
@@ -414,11 +472,12 @@ async def put_settings(request: Request, _: str = Depends(require_token)) -> dic
 
 
 def pending_ids(token: str) -> list[int]:
-    """사진이 있고, 30일 안이고, 이 토큰이 ack 하지 않은 이벤트 id. 오래된 것부터."""
-    limit = now() - timedelta(days=SETTINGS["device_keep_days"])
+    """사진이 있고, 클라우드에 아직 있고(7일 안, 안 지움), 이 토큰이 ack 하지 않은 이벤트 id. 오래된 것부터."""
+    limit = now() - timedelta(days=CLOUD_KEEP_DAYS)
     acked = ACKED.setdefault(token, set())
     return [e["id"] for e in sorted(EVENTS.values(), key=lambda e: e["t"])
-            if e.get("photo") and e["id"] not in acked and datetime.fromisoformat(e["t"]) > limit]
+            if e.get("photo") and e["id"] not in acked and e["id"] not in DELETED_PHOTOS
+            and datetime.fromisoformat(e["t"]) > limit]
 
 
 @app.get("/api/photos/pending")
@@ -430,6 +489,10 @@ def photos_pending(token: str = Depends(require_token)) -> dict[str, list[int]]:
 async def photos_ack(request: Request, token: str = Depends(require_token)) -> dict[str, int]:
     ids = (await request.json()).get("ids", [])
     ACKED.setdefault(token, set()).update(int(i) for i in ids if int(i) in EVENTS)
+    # 지금 쓰는 폰이 모두 받았으면 클라우드에서 지운다 (SPEC 9.2. 파이에는 30일 남음)
+    for i in ids:
+        if all(int(i) in ACKED.get(t, set()) for t in ACTIVE):
+            DELETED_PHOTOS.add(int(i))
     return {"acked": len(ACKED[token])}
 
 
@@ -442,7 +505,8 @@ async def ws_live(ws: WebSocket, token: str = "") -> None:
     CLIENTS.add(ws)
     try:
         # 붙자마자 프레임 하나를 바로 보낸다
-        await ws.send_json(LAST_FRAME or {"type": "frame", "t": iso(now()), "radar": "ok", "people": []})
+        first = LAST_FRAME or {"type": "frame", "t": iso(now()), "radar": "ok", "pi": "online", "people": []}
+        await ws.send_json(first if PI_ONLINE else offline_frame())
         while True:
             await ws.receive_text()  # 앱이 보내는 건 없지만 연결 유지용
     except (WebSocketDisconnect, RuntimeError):

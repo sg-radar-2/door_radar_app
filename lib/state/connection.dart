@@ -48,6 +48,9 @@ final appStorageProvider = Provider<AppStorage>((ref) => AppStorage(SecureKv()))
 /// 앱 시작 때 읽어 둔 저장값 (router 의 첫 화면을 동기로 정하려고 main 에서 미리 읽는다)
 final savedSessionProvider = Provider<SavedSession>((ref) => const SavedSession());
 
+/// 앱이 붙는 서버 (빌드 설정의 클라우드, SPEC 9장). 테스트에서 override.
+final serverDeviceProvider = Provider<PiDevice>((ref) => PiDevice.cloud);
+
 typedef PiApiFactory = PiApi Function(PiDevice device, String? token);
 typedef LiveSocketFactory = LiveSocket Function(PiDevice device, String token, void Function() onReconnected);
 
@@ -70,8 +73,8 @@ final piApiProvider = Provider<PiApi?>((ref) {
   return api;
 });
 
-/// 페어링 실패 단계
-enum PairStep { info, pair, save }
+/// 페어링 실패 단계 (클라우드: 코드 → 토큰 → 그 토큰으로 기기 정보)
+enum PairStep { pair, info, save }
 
 class PairException implements Exception {
   const PairException(this.step, this.cause);
@@ -112,22 +115,23 @@ class ConnectionNotifier extends Notifier<PiConnection> {
     return PiConnection(status: LinkStatus.connecting, device: saved.device, token: saved.token);
   }
 
-  /// IP + 6자리 코드 → `/api/info` 로 확인 → `/api/pair` → 토큰 저장 → 실시간 연결 시작.
+  /// 6자리 코드 → `/api/pair` → 토큰으로 `/api/info`(어느 파이인지) → 토큰 저장 → 실시간 연결 시작 (SPEC 9.1).
   /// 실패하면 [PairException] (어느 단계에서 실패했는지 + PiApiException).
-  Future<void> pair(PiDevice device, String code) async {
+  Future<void> pair(String code) async {
+    final device = ref.read(serverDeviceProvider);
     final api = ref.read(piApiFactoryProvider)(device, null);
     try {
-      final DeviceInfo info;
-      try {
-        info = await api.info();
-      } catch (e) {
-        throw PairException(PairStep.info, e);
-      }
       final String token;
       try {
         token = await api.pair(code);
       } catch (e) {
         throw PairException(PairStep.pair, e);
+      }
+      final DeviceInfo info;
+      try {
+        info = await api.info(); // pair 가 api.token 을 채웠다
+      } catch (e) {
+        throw PairException(PairStep.info, e);
       }
       final named = device.copyWith(name: info.name);
       try {
@@ -159,7 +163,7 @@ class ConnectionNotifier extends Notifier<PiConnection> {
     await ref.read(appStorageProvider).clearDevice();
     if (!ref.mounted) return;
     _tokenChecked = false;
-    state = const PiConnection();
+    state = PiConnection(device: ref.read(serverDeviceProvider));
   }
 
   bool _paused = false;
@@ -258,7 +262,7 @@ class ConnectionNotifier extends Notifier<PiConnection> {
   }
 
   Future<void> _loadInfo(PiDevice device) async {
-    final api = ref.read(piApiFactoryProvider)(device, null);
+    final api = ref.read(piApiFactoryProvider)(device, state.token);
     try {
       final info = await api.info();
       if (!ref.mounted || state.device != device) return;

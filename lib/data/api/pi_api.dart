@@ -42,8 +42,9 @@ class PiApiException implements Exception {
   String toString() => 'PiApiException($statusCode $code: $message)';
 }
 
-/// SPEC 4장 REST. 기본 주소 `http://<파이IP>:8080`.
-/// `/api/info`, `/api/pair` 외에는 `Authorization: Bearer <토큰>` 을 인터셉터가 붙인다.
+/// SPEC 4장 REST. 클라우드(SPEC 9장)가 경로·필드를 그대로 제공한다.
+/// `/api/pair` 외에는 토큰이 있으면 `Authorization: Bearer <토큰>` 을 인터셉터가 붙인다.
+/// (`/api/info` 도 토큰과 함께 불러야 클라우드가 어느 파이인지 안다)
 class PiApi {
   PiApi({required PiDevice device, this.token, Dio? dio}) : dio = dio ?? Dio() {
     this.dio.options
@@ -71,13 +72,14 @@ class PiApi {
   /// `/api/pair` 가 성공하면 채워진다
   String? token;
 
-  static const _publicPaths = {'/api/info', '/api/pair'};
+  static const _publicPaths = {'/api/pair'};
 
   /// 사진 등 다른 HTTP 클라이언트(cached_network_image)에 붙일 헤더
   Map<String, String> get authHeaders => token == null ? const {} : {'Authorization': 'Bearer $token'};
 
   // ---------------------------------------------------------------- 인증 없음
 
+  /// 페어링한 파이의 정보 (토큰 필요, SPEC 9.1)
   Future<DeviceInfo> info() => _guard(() async {
         final res = await dio.get<Map<String, dynamic>>('/api/info');
         return DeviceInfo.fromJson(res.data!);
@@ -161,6 +163,11 @@ class PiApi {
           'camera_hold_s': ?cameraHoldS,
         });
         return PiSettings.fromJson(res.data!);
+      });
+
+  /// 이 폰의 FCM 토큰 등록 (클라우드만, SPEC 9.1). 앱 토큰마다 하나.
+  Future<void> pushToken(String fcmToken) => _guard(() async {
+        await dio.put<dynamic>('/api/push_token', data: {'token': fcmToken});
       });
 
   void close() => dio.close(force: true);

@@ -20,6 +20,7 @@ _DeviceStatus _$DeviceStatusFromJson(Map<String, dynamic> json) =>
       cameraBackend: json['camera_backend'] as String?,
       judgeError: json['judge_error'] as String?,
       pendingPhotos: (json['pending_photos'] as num?)?.toInt(),
+      pi: json['pi'] as String?,
     );
 
 Map<String, dynamic> _$DeviceStatusToJson(_DeviceStatus instance) =>
@@ -36,6 +37,7 @@ Map<String, dynamic> _$DeviceStatusToJson(_DeviceStatus instance) =>
       'camera_backend': instance.cameraBackend,
       'judge_error': instance.judgeError,
       'pending_photos': instance.pendingPhotos,
+      'pi': ?instance.pi,
     };
 
 _StorageInfo _$StorageInfoFromJson(Map<String, dynamic> json) => _StorageInfo(

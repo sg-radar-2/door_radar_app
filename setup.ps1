@@ -23,7 +23,7 @@ if (-not (Get-Command flutter -ErrorAction SilentlyContinue)) {
 Run 'flutter --version'
 Run 'flutter create --org com.sgradar --project-name door_radar_app --platforms android,ios --no-pub .'
 
-Run 'flutter pub add flutter_riverpod go_router dio web_socket_channel nsd flutter_secure_storage flutter_local_notifications cached_network_image sqflite path_provider gal intl freezed_annotation json_annotation'
+Run 'flutter pub add flutter_riverpod go_router dio web_socket_channel flutter_secure_storage flutter_local_notifications cached_network_image sqflite path_provider gal intl freezed_annotation json_annotation'
 Run 'flutter pub add dev:build_runner dev:freezed dev:json_serializable dev:flutter_lints'
 
 # --- AndroidManifest: cleartext to Pi + permissions --------------------------
@@ -36,8 +36,6 @@ if ($xml -notmatch 'android.permission.INTERNET') {
     $perms = @(
         'android.permission.INTERNET',
         'android.permission.ACCESS_NETWORK_STATE',
-        'android.permission.ACCESS_WIFI_STATE',
-        'android.permission.CHANGE_WIFI_MULTICAST_STATE',
         'android.permission.POST_NOTIFICATIONS',
         'android.permission.VIBRATE'
     ) | ForEach-Object { "    <uses-permission android:name=`"$_`" />" }

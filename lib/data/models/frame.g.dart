@@ -15,6 +15,7 @@ _LiveFrame _$LiveFrameFromJson(Map<String, dynamic> json) => _LiveFrame(
           .toList() ??
       const <LivePerson>[],
   radar: json['radar'] as String,
+  pi: json['pi'] as String?,
 );
 
 Map<String, dynamic> _$LiveFrameToJson(_LiveFrame instance) =>
@@ -23,6 +24,7 @@ Map<String, dynamic> _$LiveFrameToJson(_LiveFrame instance) =>
       't': instance.t,
       'people': instance.people.map((e) => e.toJson()).toList(),
       'radar': instance.radar,
+      'pi': ?instance.pi,
     };
 
 _LivePerson _$LivePersonFromJson(Map<String, dynamic> json) => _LivePerson(

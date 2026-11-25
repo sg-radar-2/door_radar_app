@@ -1,13 +1,10 @@
-import 'dart:io';
-
-import 'package:door_radar_app/data/discovery.dart';
+import 'package:door_radar_app/data/models/pi_device.dart';
 import 'package:door_radar_app/data/storage.dart';
 import 'package:door_radar_app/features/settings/device_screen.dart';
 import 'package:door_radar_app/features/settings/settings_screen.dart';
 import 'package:door_radar_app/state/live.dart';
 import 'package:door_radar_app/state/settings.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nsd/nsd.dart' as nsd;
 
 void main() {
   test('알림 상황 켜고 끄기: 순서는 장시간 체류 · 배회 · 반복 접근', () {
@@ -59,17 +56,24 @@ void main() {
     expect(gb(29), '29');
   });
 
-  test('mDNS 서비스 → 카드: IPv4 만, 같은 IP·포트는 하나로', () {
-    final list = toFoundDevices([
-      nsd.Service(
-          name: 'doorradar', host: 'rad2pi.local.', port: 8080, addresses: [InternetAddress('192.168.0.10')]),
-      nsd.Service(
-          name: 'doorradar', host: 'rad2pi.local.', port: 8080, addresses: [InternetAddress('192.168.0.10')]),
-      nsd.Service(name: 'v6only', port: 8080, addresses: [InternetAddress('fe80::1')]),
-      const nsd.Service(name: 'unresolved', port: 8080),
-    ]);
-    expect(list, hasLength(1));
-    expect(list.single.title, 'rad2pi.local');
-    expect(list.single.device.address, '192.168.0.10');
+  test('클라우드 주소: https 는 443·wss, scheme 없으면 http 8080', () {
+    final cloud = PiDevice.tryParse('https://rad2-cloud.onrender.com')!;
+    expect(cloud.secure, isTrue);
+    expect(cloud.port, 443);
+    expect(cloud.baseUri.toString(), 'https://rad2-cloud.onrender.com');
+    expect(cloud.wsScheme, 'wss');
+    expect(cloud.address, 'https://rad2-cloud.onrender.com');
+    expect(PiDevice.tryParse('10.0.2.2:8080'), const PiDevice(host: '10.0.2.2'));
+    expect(PiDevice.tryParse('ftp://x'), isNull);
+  });
+
+  test('다른 서버에서 받은 토큰은 버린다 (개발 ↔ 실제 빌드)', () async {
+    const server = PiDevice(host: '10.0.2.2');
+    final kv = MemoryKv();
+    await AppStorage(kv, server: server).save(server.copyWith(name: 'doorradar'), 'tok');
+    expect((await AppStorage(kv, server: server).load()).token, 'tok');
+    final other = await AppStorage(kv, server: PiDevice.tryParse('https://rad2-cloud.onrender.com')!).load();
+    expect(other.token, isNull);
+    expect(other.isPaired, isFalse);
   });
 }

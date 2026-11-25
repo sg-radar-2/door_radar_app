@@ -66,13 +66,16 @@ bool samePerson(String a, String b) {
 }
 
 class LiveState {
-  const LiveState({this.people = const [], this.radar, this.frameT, this.frameCount = 0});
+  const LiveState({this.people = const [], this.radar, this.pi, this.frameT, this.frameCount = 0});
 
   /// 프레임에 온 순서 그대로
   final List<TrackedPerson> people;
 
   /// 마지막 프레임의 `radar` ("ok" 이면 정상). 프레임을 아직 못 받았으면 null.
   final String? radar;
+
+  /// 마지막 프레임의 `pi` (클라우드, SPEC 9.1). "offline" 이면 파이가 클라우드에 안 붙어 있다.
+  final String? pi;
 
   /// 마지막 프레임의 `t` (파이 시각 문자열). 다시 붙었을 때 `since=` 에 쓴다.
   final String? frameT;
@@ -82,6 +85,7 @@ class LiveState {
 
   bool get hasFrame => frameT != null;
   bool get radarOk => radar == 'ok';
+  bool get piOffline => pi == 'offline';
 
   TrackedPerson? find(String id) {
     for (final p in people) {
@@ -112,7 +116,8 @@ LiveState applyFrame(LiveState prev, LiveFrame frame) {
       firstY: old?.firstY ?? p.y,
     ));
   }
-  return LiveState(people: people, radar: frame.radar, frameT: frame.t, frameCount: prev.frameCount + 1);
+  return LiveState(
+      people: people, radar: frame.radar, pi: frame.pi, frameT: frame.t, frameCount: prev.frameCount + 1);
 }
 
 final liveProvider = NotifierProvider<LiveNotifier, LiveState>(LiveNotifier.new);
@@ -173,6 +178,10 @@ class DeviceStatusNotifier extends Notifier<DeviceStatus?> {
 }
 
 // ---------------------------------------------------------------- 화면 문구
+
+/// 파이가 클라우드에 안 붙어 있을 때 (SPEC 9.1 `pi: "offline"`)
+const piOfflineLabel = '기기 꺼짐';
+const piOfflineHint = '기기가 꺼져 있거나 인터넷에 연결되지 않았어요';
 
 String radarLabel(String? radar) => switch (radar) {
       'ok' => '레이더 연결',

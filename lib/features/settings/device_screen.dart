@@ -181,19 +181,20 @@ class _StatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final linked = conn.status == LinkStatus.connected;
     final s = linked ? status : null;
-    final healthy = s != null && s.radarOk && s.cameraOk && s.judgeError == null;
+    final healthy = s != null && !s.piOffline && s.radarOk && s.cameraOk && s.judgeError == null;
     final headline = !linked
         ? conn.status.label
         : s == null
             ? '상태 확인 중'
-            : healthy
-                ? '정상 작동 중'
-                : '확인이 필요해요';
-    final name = conn.info?.host ?? conn.info?.name ?? conn.device?.address ?? '-';
+            : s.piOffline
+                ? piOfflineLabel
+                : healthy
+                    ? '정상 작동 중'
+                    : '확인이 필요해요';
+    final name = conn.info?.host ?? conn.info?.name ?? conn.device?.name ?? '-';
     final sub = [
       if (conn.info != null) '서버 ${conn.info!.version}',
-      if (conn.device != null) conn.device!.address,
-      '공유기 Wi-Fi',
+      if (s != null && s.piOffline) piOfflineHint else '클라우드 연결',
     ].join(' · ');
 
     Widget fact(String label, String value) => Expanded(

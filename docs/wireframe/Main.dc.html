@@ -28,42 +28,7 @@ input::placeholder{color:#8A8A88}
 
   <div style="display: flex; flex-direction: column; gap: 10px">
     <h1 style="margin: 0; font-size: 36px; line-height: 42px; font-weight: 600; letter-spacing: -1.2px">현관 기기<br>연결하기</h1>
-    <p style="margin: 0; font-size: 14px; line-height: 21px; color: #6B6B6B">레이더와 같은 Wi-Fi에 연결된 라즈베리파이를 골라 주세요.</p>
-  </div>
-
-  <div style="display: flex; flex-direction: column; gap: 12px">
-    <div style="display: flex; align-items: center; justify-content: space-between">
-      <span style="font-size: 13px; font-weight: 600">같은 Wi-Fi에서 찾은 기기</span>
-      <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6B6B6B">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M4.5 9.5a11 11 0 0 1 15 0M7.5 12.8a6.5 6.5 0 0 1 9 0"></path><circle cx="12" cy="16.5" r="1.2" fill="currentColor" stroke="none"></circle></svg>
-        찾는 중
-      </span>
-    </div>
-    <label style="display: flex; align-items: center; gap: 14px; background: #FFFFFF; border-radius: 24px; padding: 16px 18px; border: 1.5px solid #141414; cursor: pointer">
-      <div style="width: 44px; height: 44px; border-radius: 22px; background: #141414; color: #FFFFFF; display: flex; align-items: center; justify-content: center; flex-shrink: 0">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17M4 21h16"></path><circle cx="14.5" cy="12" r="0.9" fill="currentColor" stroke="none"></circle></svg>
-      </div>
-      <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1">
-        <span style="font-size: 15px; font-weight: 600">doorradar.local</span>
-        <span style="font-size: 12px; color: #6B6B6B">192.168.0.10 · 레이더 연결됨</span>
-      </div>
-      <input type="radio" name="device" checked="" style="width: 20px; height: 20px; accent-color: #141414; margin: 0">
-    </label>
-    <label style="display: flex; align-items: center; gap: 14px; background: #FFFFFF; border-radius: 24px; padding: 16px 18px; border: 1.5px solid #FFFFFF; cursor: pointer">
-      <div style="width: 44px; height: 44px; border-radius: 22px; background: #EFEFEE; color: #141414; display: flex; align-items: center; justify-content: center; flex-shrink: 0">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17M4 21h16"></path><circle cx="14.5" cy="12" r="0.9" fill="currentColor" stroke="none"></circle></svg>
-      </div>
-      <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1">
-        <span style="font-size: 15px; font-weight: 600">doorradar-2.local</span>
-        <span style="font-size: 12px; color: #6B6B6B">192.168.0.14 · 레이더 연결 안 됨</span>
-      </div>
-      <input type="radio" name="device" style="width: 20px; height: 20px; accent-color: #141414; margin: 0">
-    </label>
-  </div>
-
-  <div style="display: flex; flex-direction: column; gap: 10px">
-    <label for="ip" style="font-size: 13px; font-weight: 600">IP 직접 입력</label>
-    <input id="ip" type="text" placeholder="예: 192.168.0.10" style="height: 52px; border-radius: 13px; border: 1px solid #DCDCDA; background: #FFFFFF; padding: 0 20px; font-size: 15px; font-family: inherit; color: #141414; outline: none">
+    <p style="margin: 0; font-size: 14px; line-height: 21px; color: #6B6B6B">라즈베리파이에 나온 6자리 코드로 이 폰을 현관 기기와 연결해요.</p>
   </div>
 
   <div style="display: flex; flex-direction: column; gap: 10px">
@@ -76,7 +41,7 @@ input::placeholder{color:#8A8A88}
       <input aria-label="페어링 코드 5" maxlength="1" style="height: 52px; border-radius: 16px; border: 1px solid #DCDCDA; background: #FFFFFF; text-align: center; font-size: 20px; font-weight: 600; font-family: inherit; color: #141414; min-width: 0; padding: 0">
       <input aria-label="페어링 코드 6" maxlength="1" style="height: 52px; border-radius: 16px; border: 1px solid #DCDCDA; background: #FFFFFF; text-align: center; font-size: 20px; font-weight: 600; font-family: inherit; color: #141414; min-width: 0; padding: 0">
     </div>
-    <span style="font-size: 12px; line-height: 17px; color: #6B6B6B">라즈베리파이 서버를 켜면 화면(또는 로그)에 6자리 코드가 나와요.</span>
+    <span style="font-size: 12px; line-height: 17px; color: #6B6B6B">라즈베리파이 서버를 켜면 화면(또는 로그)에 6자리 코드가 나와요. 기기가 인터넷에 연결돼 있어야 해요.</span>
   </div>
 
   <a href="Home.dc.html" style="margin-top: auto; height: 60px; border-radius: 30px; background: #141414; color: #FFFFFF; text-decoration: none; display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 26px; font-size: 16px; font-weight: 600">

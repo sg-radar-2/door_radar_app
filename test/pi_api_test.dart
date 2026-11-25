@@ -8,9 +8,10 @@ import 'fakes.dart';
 void main() {
   const device = PiDevice(host: '10.0.2.2');
 
-  test('인증이 필요한 요청에만 Bearer 토큰', () async {
+  test('/api/pair 외에는 Bearer 토큰 (클라우드는 /api/info 도 토큰으로 기기를 안다)', () async {
     final adapter = FakeAdapter((o) => switch (o.path) {
           '/api/info' => (200, infoBody),
+          '/api/pair' => (200, {'token': 'tok2'}),
           '/api/photos/pending' => (200, {'ids': [101, 103]}),
           _ => (404, {'error': 'not_found', 'message': ''}),
         });
@@ -18,10 +19,12 @@ void main() {
 
     await api.info();
     expect(await api.pendingPhotos(), [101, 103]);
+    await api.pair('482913');
 
     expect(adapter.requests[0].uri.toString(), 'http://10.0.2.2:8080/api/info');
-    expect(adapter.requests[0].headers['Authorization'], isNull);
+    expect(adapter.requests[0].headers['Authorization'], 'Bearer tok');
     expect(adapter.requests[1].headers['Authorization'], 'Bearer tok');
+    expect(adapter.requests[2].headers['Authorization'], isNull);
   });
 
   test('pair 로 받은 토큰을 바로 쓴다', () async {

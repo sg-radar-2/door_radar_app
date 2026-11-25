@@ -1,7 +1,6 @@
 import 'package:door_radar_app/app/app.dart';
 import 'package:door_radar_app/data/models/models.dart';
 import 'package:door_radar_app/data/api/live_socket.dart';
-import 'package:door_radar_app/data/discovery.dart';
 import 'package:door_radar_app/features/settings/device_screen.dart';
 import 'package:door_radar_app/features/settings/settings_screen.dart';
 import 'package:door_radar_app/data/local_store.dart';
@@ -39,7 +38,6 @@ void main() {
   late Map<int, Map<String, Object?>> piEvents; // 파이에 있는 이벤트 상세 (id → JSON)
   late Map<String, Object?> piSettings; // 파이 설정 (PUT 하면 바뀐다)
   late bool failSettings; // PUT /api/settings 실패시키기
-  late FakeDiscovery discovery;
 
   (int, Object?) labelEvent(int id, String? situation) {
     final e = piEvents[id];
@@ -56,9 +54,9 @@ void main() {
     piEvents = {};
     piSettings = {...settingsBody};
     failSettings = false;
-    discovery = FakeDiscovery();
     adapter = FakeAdapter((o) => switch (o.path) {
-          '/api/info' => (200, infoBody),
+          '/api/info' when o.headers['Authorization'] == 'Bearer tok' => (200, infoBody),
+          '/api/info' => (200, {'name': 'rad2-cloud', 'version': '0.1.0'}), // 토큰 없으면 클라우드 정보만
           '/api/pair' when (o.data as Map)['code'] == '482913' => (200, {'token': 'tok'}),
           '/api/pair' => (401, {'error': 'bad_code', 'message': '페어링 코드가 틀렸습니다.'}),
           '/api/status' => (200, statusBody),
@@ -86,7 +84,6 @@ void main() {
         savedSessionProvider.overrideWithValue(saved),
         alertNotificationsProvider.overrideWithValue(notes),
         localStoreProvider.overrideWithValue(store),
-        deviceDiscoveryProvider.overrideWithValue(discovery),
         piApiFactoryProvider.overrideWithValue((device, token) => fakeApi(device, token, adapter)),
         liveSocketFactoryProvider.overrideWithValue((device, token, onReconnected) {
           final s = FakeLiveSocket();
@@ -99,12 +96,11 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('저장된 토큰이 없으면 연결 화면 → IP·코드로 페어링하고 홈으로', (tester) async {
+  testWidgets('저장된 토큰이 없으면 연결 화면 → 코드로 클라우드에 페어링하고 홈으로', (tester) async {
     await pumpApp(tester);
     expect(find.text('현관 기기\n연결하기'), findsOneWidget);
-    expect(find.text('IP 직접 입력'), findsOneWidget);
+    expect(find.text('IP 직접 입력'), findsNothing); // 클라우드만 (SPEC 9장)
 
-    await tester.enterText(find.byKey(ConnectScreen.ipFieldKey), '10.0.2.2:8080');
     await tester.enterText(find.byKey(ConnectScreen.codeFieldKey), '482913');
     await tester.pump();
     expect(find.text('9'), findsOneWidget); // 코드 칸에 숫자가 그려진다
@@ -114,7 +110,9 @@ void main() {
 
     expect(find.text('현관'), findsOneWidget); // 홈
     expect(find.text('기록'), findsWidgets); // 하단 탭
-    expect(adapter.requests.map((r) => r.path).take(2), ['/api/info', '/api/pair']);
+    // 코드 → 토큰 → 그 토큰으로 기기 정보 (SPEC 9.1)
+    expect(adapter.requests.map((r) => r.path).take(2), ['/api/pair', '/api/info']);
+    expect(adapter.requests[1].headers['Authorization'], 'Bearer tok');
     expect(kv.values['pi_token'], 'tok');
     expect(kv.values['pi_address'], '10.0.2.2');
     expect(sockets.single.started, isTrue);
@@ -122,7 +120,6 @@ void main() {
 
   testWidgets('페어링 코드가 틀리면 안내하고 연결 화면에 남는다', (tester) async {
     await pumpApp(tester);
-    await tester.enterText(find.byKey(ConnectScreen.ipFieldKey), '10.0.2.2');
     await tester.enterText(find.byKey(ConnectScreen.codeFieldKey), '000000');
     await tapConnect(tester);
     await tester.pumpAndSettle();
@@ -132,13 +129,12 @@ void main() {
     expect(kv.values.containsKey('pi_token'), isFalse);
   });
 
-  testWidgets('IP 형식이 틀리면 요청하지 않는다', (tester) async {
+  testWidgets('코드가 6자리가 아니면 요청하지 않는다', (tester) async {
     await pumpApp(tester);
-    await tester.enterText(find.byKey(ConnectScreen.ipFieldKey), 'http://');
-    await tester.enterText(find.byKey(ConnectScreen.codeFieldKey), '482913');
+    await tester.enterText(find.byKey(ConnectScreen.codeFieldKey), '4829');
     await tapConnect(tester);
     await tester.pumpAndSettle();
-    expect(find.textContaining('IP 주소를 확인해 주세요'), findsOneWidget);
+    expect(find.textContaining('6자리'), findsWidgets);
     expect(adapter.requests, isEmpty);
   });
 
@@ -166,14 +162,14 @@ void main() {
     expect(find.text('현관'), findsOneWidget); // 페어링은 그대로
   });
 
-  testWidgets('토큰이 없어지면 연결 화면으로, 마지막 주소는 입력칸에', (tester) async {
+  testWidgets('토큰이 없어지면 연결 화면으로 (안내 문구)', (tester) async {
     await pumpApp(tester, saved: const SavedSession(device: PiDevice(host: '10.0.2.2'), token: 'tok'));
     final container = ProviderScope.containerOf(tester.element(find.text('현관')));
-    await container.read(connectionProvider.notifier).forget();
+    await container.read(connectionProvider.notifier).forget(message: '다시 페어링해 주세요.');
     await tester.pumpAndSettle();
 
     expect(find.text('현관 기기\n연결하기'), findsOneWidget);
-    expect(find.text('10.0.2.2'), findsOneWidget);
+    expect(find.text('다시 페어링해 주세요.'), findsOneWidget);
     expect(sockets.single.closed, isTrue);
   });
 
@@ -435,41 +431,15 @@ void main() {
     });
   });
 
-  group('자동 찾기', () {
-    testWidgets('찾은 기기를 고르면 IP 칸이 채워진다', (tester) async {
-      await pumpApp(tester);
-      expect(find.text('기기를 찾는 중이에요'), findsOneWidget);
-      expect(discovery.starts, 1);
+  group('클라우드', () {
+    const saved = SavedSession(device: PiDevice(host: '10.0.2.2'), token: 'tok');
 
-      discovery.found(const [
-        FoundDevice(name: 'doorradar', host: 'rad2pi.local.', ip: '192.168.0.10', port: 8080),
-        FoundDevice(name: 'doorradar-2', ip: '192.168.0.14', port: 8081),
-      ]);
+    testWidgets('파이가 클라우드에 안 붙어 있으면 홈에 "기기 꺼짐"', (tester) async {
+      await pumpApp(tester, saved: saved);
+      sockets.single.push({'type': 'frame', 't': DateTime.now().toIso8601String(), 'radar': 'disconnected', 'pi': 'offline', 'people': []});
       await flush(tester);
-      expect(find.text('rad2pi.local'), findsOneWidget);
-      expect(find.text('192.168.0.14:8081'), findsOneWidget);
-
-      await tester.tap(find.text('rad2pi.local'));
-      await tester.pump();
-      expect(find.text('192.168.0.10'), findsNWidgets(2)); // 카드 부제 + IP 칸
-    });
-
-    testWidgets('못 찾으면 IP 직접 입력 안내, 다시 찾기', (tester) async {
-      discovery = FakeDiscovery(fail: true);
-      await pumpApp(tester);
-      expect(find.text('기기를 찾지 못했어요'), findsOneWidget);
-      expect(find.text('아래에 IP를 직접 입력해 주세요'), findsOneWidget);
-
-      await tester.tap(find.byKey(ConnectScreen.rescanKey));
-      await tester.pump();
-      expect(discovery.starts, 2);
-    });
-
-    testWidgets('mDNS 가 조용하면 6초 뒤 못 찾음', (tester) async {
-      await pumpApp(tester);
-      expect(find.text('기기를 찾는 중이에요'), findsOneWidget);
-      await tester.pump(const Duration(seconds: 7));
-      expect(find.text('기기를 찾지 못했어요'), findsOneWidget);
+      expect(find.text('기기 꺼짐'), findsWidgets); // 칩 + 지도 위 안내
+      expect(find.text('기기가 꺼져 있거나 인터넷에 연결되지 않았어요'), findsOneWidget);
     });
   });
 
