@@ -188,6 +188,28 @@
 
 파이는 집 공유기 안이라 클라우드가 먼저 붙을 수 없다. 파이가 연결을 열어 두고, 클라우드는 그 연결로 앱의 요청을 파이에 전달한다.
 
+### 9.0 지금 배포된 클라우드 (2026-11-26 확인)
+
+실제 클라우드는 `../rad2-cloud-backend`(`origin/main`, `https://rad2-cloud.onrender.com`)다. 아래 9.1~9.4 중 **지금 있는 것은 이 표뿐**이고, 나머지는 계획이다. 앱 쪽 계약은 이 표를 기준으로 맞춘다.
+
+| 경로 | 지금 동작 |
+| --- | --- |
+| `GET /health` | `{"status": "ok", "service": "rad2-cloud"}` (인증 없음) |
+| `POST /api/pair` | 코드를 **Render 환경변수 `RAD2_PAIR_CODE`** 와 비교한다. 맞으면 `{"token"}`, 틀리면 401 `bad_code`, 환경변수가 없으면 503 `not_configured`. 파이의 `pair_code.txt`는 쓰지 않는다 |
+| `GET /api/info` | 인증 없이 고정 값(`name: "doorradar"`, `version`, `model`, `model_version`, `region`)을 준다. 파이에서 받아 오는 값이 아니다 |
+| `GET /api/events`, `GET /api/events/{id}` | 4장과 같다(Bearer 토큰). 이벤트 `id`는 **클라우드 id**이고 파이 id(`edge_event_id`)와 다르다. `photo`는 지금 항상 `false` |
+| `POST /api/events/{id}/label` | 4장과 같다. 클라우드 DB에만 저장하고 파이에는 전하지 않는다 |
+| `GET /api/status` | 4장 형식이지만 파이가 상태를 아직 안 올려서 `radar: "disconnected"`, 나머지는 대부분 `null`, `status_source: "unavailable"`. `last_event_at`만 실제 값 |
+| `GET / PUT /api/settings` | 4장 형식. **클라우드 DB에만** 저장하고 파이에는 아직 전하지 않는다. `notify`는 이상 상황 3가지만, `camera_prob` 0~1, `camera_hold_s` 0~10, `region`·`device_keep_days`는 무시, 모르는 키는 400 `unknown_setting` |
+| `PUT /api/push_token` | `{"token", "platform"?: "android" \| "ios"}` → `{"ok": true, "platform"}`. `camera` 이벤트가 오면 클라우드가 FCM을 보낸다 |
+| `POST /api/device/events` | 파이 → 클라우드 이벤트 올리기(9.3). 헤더 `X-Device-Key` |
+
+- **없는 것 (404)**: `/api/radar/reconnect`, `/api/events/{id}/photo`, `/api/photos/pending`·`ack`, `/ws/live`, 파이 접속 상태(`pi`), 사진 올리기. 그래서 실제 클라우드에 붙은 앱은 기록·정답 표시·설정·푸시는 되지만, 홈 실시간 지도는 "연결 안 됨"이고 기기 상태는 레이더 끊김으로 보인다.
+- **시각**: 클라우드는 `t` 등을 UTC(`+00:00`)로 준다. 시각 자체는 같으니 앱은 시간대를 붙여 파싱하고 한국 시간으로 보여 준다.
+- **기기 한 대**: 클라우드는 `device_id = "rad2pi"` 하나만 받는다. 페어링한 모든 폰이 이 기기를 본다.
+- **페어링 코드 맞추기**: Render의 `RAD2_PAIR_CODE`와 앱에 입력하는 코드가 같아야 한다. 파이 코드와는 관계없지만, 헷갈리지 않게 파이 `config.toml`의 `pair_code`도 같은 값으로 고정해 두기를 권한다(비우면 파이가 켤 때마다 새 코드를 만든다).
+- 연결 확인: `python scripts/check_cloud.py --code <코드>` (README 「실제 클라우드 연결 확인」).
+
 ### 9.1 앱 ↔ 클라우드
 
 - 기본 주소: `https://<클라우드 주소>` (앱 빌드 설정 `--dart-define=CLOUD_URL=...`, 개발 때는 목 서버 `http://10.0.2.2:8080`). WebSocket은 `wss://<클라우드 주소>/ws/live?token=`.
@@ -196,8 +218,8 @@
 
 | 항목 | 내용 |
 | --- | --- |
-| 연결 순서 | `POST /api/pair {"code"}` → 토큰 → `GET /api/info`(토큰 필요). 토큰 없이 부른 `/api/info`는 클라우드 정보(`{"name": "rad2-cloud", "version": ...}`)만 준다 |
-| 페어링 코드 | 파이가 만든 6자리 코드(파이 로그·`pair_code.txt`) 그대로. 파이가 클라우드에 붙을 때 코드를 알려 주고, 클라우드는 코드 → 기기로 찾는다. 겹치면 파이가 새 코드를 만든다 |
+| 연결 순서 | `POST /api/pair {"code"}` → 토큰 → `GET /api/info`. 지금 클라우드의 `/api/info`는 토큰 없이도 같은 고정 값을 준다(9.0) |
+| 페어링 코드 | 클라우드 환경변수 `RAD2_PAIR_CODE`의 6자리 고정 코드(9.0). 기기가 한 대라 코드 하나로 충분하다. 파이 `pair_code.txt`도 같은 값으로 맞춰 두면 시연 때 헷갈리지 않는다 |
 | 파이 접속 상태 | `/api/status`와 프레임에 `"pi": "online" \| "offline"` 추가. 파이가 끊겨 있으면 클라우드가 1초마다 `{"type": "frame", "t": ..., "radar": "disconnected", "pi": "offline", "people": []}`를 보낸다(앱의 2초 감시가 소켓을 끊지 않게) |
 | 오프라인 때 요청 | 파이가 필요한 요청(`PUT /api/settings`, `POST /api/radar/reconnect`, `POST .../label`)은 503 `pi_offline`. 저장된 것만 읽는 요청(`/api/events`, `/api/settings` GET)은 마지막 값으로 답한다 |
 | 푸시 토큰 | `PUT /api/push_token {"token": "<FCM 토큰>"}` 추가. 앱 토큰(=폰)마다 하나 |
@@ -213,7 +235,12 @@
 
 ### 9.3 파이 ↔ 클라우드
 
-목 서버의 바깥 파이 모드(`MOCK_EXTERNAL_PI=1`)가 클라우드 쪽을, `mock_server/fake_pi_client.py`가 파이 쪽을 이대로 구현해 두었다. 둘을 붙여 보면 순서를 그대로 확인할 수 있다.
+**지금 구현 (HTTP로 올리기만)**: 파이(`../pi_server/cloud.py`, 형식은 `../pi_server/docs/CLOUD_API.md`)가 이벤트가 생기거나 바뀔 때 `POST /api/device/events`로 올린다.
+헤더 `X-Device-Key`는 Render 환경변수 `RAD2_DEVICE_API_KEY`와 같아야 하고(틀리면 401, 없으면 503), `device_id`는 `"rad2pi"`만 받는다(아니면 403).
+본문은 `{"device_id", "edge_event_id", "kind", "person", "t", "situation", "prob", "abnormal", "started_at"?, "ended_at"?, "photo"?, "details": {/* final 의 end_situation·behaviors·reason·path·also·track */}}`이고, 클라우드는 `(device_id, edge_event_id)`로 덮어쓴다.
+파이는 사진도 `POST /api/device/events/{edge_event_id}/photo`로 올리지만 클라우드에 이 경로가 아직 없다. 클라우드 → 파이 방향(설정 바꾸기, 실시간 프레임, 접속 상태)도 아직 없다.
+
+**계획 (아래, 클라우드에 아직 없음)**: 목 서버의 바깥 파이 모드(`MOCK_EXTERNAL_PI=1`)가 클라우드 쪽을, `mock_server/fake_pi_client.py`가 파이 쪽을 이대로 구현해 두었다. 둘을 붙여 보면 순서를 그대로 확인할 수 있다. 계획에서는 페어링 코드를 `hello.pair_code`로 알리지만, 지금 클라우드는 9.0의 고정 코드를 쓴다.
 
 **등록** (파이가 처음 한 번, 받은 토큰은 파이 `config.toml` 등에 저장)
 

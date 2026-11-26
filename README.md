@@ -5,7 +5,7 @@
 - 명세: [`docs/SPEC.md`](docs/SPEC.md) (팀 문서 「도어 레이더 앱 구현 문서 (Flutter)」에서 옮김)
 - 디자인: [`docs/DESIGN.md`](docs/DESIGN.md), 화면별 와이어프레임 [`docs/wireframe/`](docs/wireframe/)
 - 가짜 클라우드: [`mock_server/`](mock_server/) (클라우드·파이·레이더 없이 앱 개발)
-- 실제 클라우드: `sg-radar-tools/tools/cloud_backend` (FastAPI + PostgreSQL, Render)
+- 실제 클라우드: `../rad2-cloud-backend` (FastAPI + PostgreSQL, Render). 지금 되는 것과 없는 것은 SPEC 9.0
 - 정답 → 재학습 → 모델 배포, 푸시 알림 계획: [`docs/TRAINING_PIPELINE.md`](docs/TRAINING_PIPELINE.md)
 - Claude 작업 규칙: [`CLAUDE.md`](CLAUDE.md)
 
@@ -85,11 +85,25 @@ mock_server/  server.py (FastAPI, 가짜 클라우드), fake_pi_client.py (파�
 docs/         SPEC.md, DESIGN.md, TRAINING_PIPELINE.md, wireframe/
 ```
 
+## 실제 클라우드 연결 확인
+
+파이·레이더·폰 없이 PC에서 클라우드만 확인한다([`scripts/check_cloud.py`](scripts/check_cloud.py), 표준 라이브러리만 사용).
+`python`이 MSYS2 것이면 인증서가 없어 HTTPS가 실패하므로 Windows 파이썬(`py`)으로 돌린다.
+
+```powershell
+py scripts\check_cloud.py                       # 서버(/health)와 /api/info
+py scripts\check_cloud.py --code 123456         # 페어링 → 토큰으로 /api/events 읽기 (코드 = Render의 RAD2_PAIR_CODE)
+py scripts\check_cloud.py --token <토큰>         # 받은 토큰 다시 쓰기 (DB에 토큰이 더 안 쌓임)
+py scripts\check_cloud.py --token <토큰> --send-test-event --device-key <RAD2_DEVICE_API_KEY>   # 파이 대신 이벤트 하나 올리기 (DB에 남음)
+```
+
+앱으로 보려면 기본 주소로 `flutter run` 하고 같은 코드로 연결한다. 지금 클라우드에는 `/ws/live`와 사진이 없어서 홈 실시간 지도는 연결 안 됨, 기기 상태는 레이더 끊김으로 보인다(SPEC 9.0).
+
 ## 실제 클라우드·파이에서 확인할 것
 
-지금까지는 목 서버로만 확인했다. 실제 클라우드(`tools/cloud_backend`)와 파이(`../pi_server` + 클라우드 클라이언트), Android 폰으로:
+지금까지는 목 서버로만 확인했다. 실제 클라우드(`../rad2-cloud-backend`)와 파이(`../pi_server` + 클라우드 클라이언트), Android 폰으로:
 
-- [ ] `--dart-define=CLOUD_URL=https://...`로 빌드한 앱에서 파이 화면/로그의 6자리 코드로 연결된다
+- [ ] 기본 주소로 빌드한 앱에서 Render의 `RAD2_PAIR_CODE`(6자리)로 연결된다
 - [ ] 폰을 LTE로 바꿔도(집 Wi-Fi 밖) 홈 지도가 움직인다
 - [ ] 파이 전원을 끄면 홈에 "기기 꺼짐", 다시 켜면 돌아온다. 설정 스위치는 꺼져 있는 동안 바뀌지 않고 안내가 뜬다
 - [ ] Render가 잠들어 있다 깨어날 때 앱이 다시 연결된다(첫 요청이 늦을 수 있음)
