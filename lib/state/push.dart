@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/push.dart';
 import 'connection.dart';
+import 'package:flutter/foundation.dart';
 
 /// 이 폰의 FCM 토큰 (기기 상태 화면에서 복사해 Firebase 콘솔 테스트 메시지에 쓴다)
 final fcmTokenProvider = FutureProvider<String?>((ref) => ref.watch(pushMessagingProvider).token());
@@ -21,12 +22,22 @@ class PushRegistration extends Notifier<String?> {
     final push = ref.watch(pushMessagingProvider);
     final sub = push.tokenRefresh.listen((t) => register(fcm: t));
     ref.onDispose(sub.cancel);
-    ref.listen(connectionProvider.select((c) => c.status), (prev, next) {
-      if (next == LinkStatus.connected && prev != LinkStatus.connected) register();
-    });
+
+    ref.listen(
+      connectionProvider.select((c) => c.token),
+      (prev, next) {
+        if (next != null && next != prev) {
+          register();
+        }
+      },
+    );
+
     scheduleMicrotask(() {
-      if (ref.mounted && ref.read(connectionProvider).status == LinkStatus.connected) register();
+      if (ref.mounted && ref.read(connectionProvider).isPaired) {
+        register();
+      }
     });
+
     return null;
   }
 
@@ -42,8 +53,8 @@ class PushRegistration extends Notifier<String?> {
       if (!ref.mounted) return;
       _registeredFor = appToken;
       state = token;
-    } catch (_) {
-      // 다음 연결 때 다시 (클라우드가 아직 이 API 를 모르면 404)
+    } catch (e) {
+      debugPrint('FCM Cloud 등록 실패: $e');
     }
   }
 }
