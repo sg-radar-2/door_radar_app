@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 
 import '../app/constants.dart';
 import '../data/api/live_socket.dart';
@@ -38,10 +39,28 @@ class RecentEventsNotifier extends Notifier<List<Event>?> {
       if (m is LiveEventMessage) state = upsertEvent(state ?? const [], m.event, limit: recentCount);
     });
     ref.onDispose(sub.cancel);
+
+    // WebSocket 연결 성공 시 기존처럼 최근 기록 갱신
     ref.listen(connectionProvider.select((c) => c.status), (prev, next) {
-      if (next == LinkStatus.connected && prev != LinkStatus.connected) refresh();
+      if (next == LinkStatus.connected && prev != LinkStatus.connected) {
+        refresh();
+      }
     });
-    if (ref.read(connectionProvider).status == LinkStatus.connected) scheduleMicrotask(refresh);
+
+    // 페어링 Token이 생기면 WebSocket 없이도 조회
+    ref.listen(connectionProvider.select((c) => c.token), (prev, next) {
+      if (next != null && next != prev) {
+        refresh();
+      }
+    });
+
+    // 앱 재시작 시 저장된 페어링 Token으로 조회
+    scheduleMicrotask(() {
+      if (ref.mounted && ref.read(connectionProvider).isPaired) {
+        refresh();
+      }
+    });
+
     // 파이에 붙기 전·오프라인이면 폰 저장본으로 먼저 채운다
     scheduleMicrotask(() async {
       try {
@@ -206,13 +225,32 @@ class EventSyncNotifier extends Notifier<int> {
       if (m is LiveEventMessage) _onEvent(m.event);
     });
     ref.onDispose(sub.cancel);
+
+    // WebSocket 재연결 시 기존처럼 누락된 기록 동기화
     ref.listen(connectionProvider.select((c) => c.status), (prev, next) {
-      if (next == LinkStatus.connected && prev != LinkStatus.connected) catchUp();
+      if (next == LinkStatus.connected && prev != LinkStatus.connected) {
+        catchUp();
+      }
     });
+
+    // Cloud 페어링 성공 즉시 기록 동기화
+    ref.listen(connectionProvider.select((c) => c.token), (prev, next) {
+      if (next != null && next != prev) {
+        catchUp();
+      }
+    });
+
+    // 앱을 다시 실행한 경우에도 동기화
     scheduleMicrotask(() {
+      if (!ref.mounted) return;
+
       purge();
-      if (ref.read(connectionProvider).status == LinkStatus.connected) catchUp();
+
+      if (ref.read(connectionProvider).isPaired) {
+        catchUp();
+      }
     });
+
     return 0;
   }
 
@@ -251,19 +289,35 @@ class EventSyncNotifier extends Notifier<int> {
   /// 놓친 이벤트 채우기 + 사진 동기화. 겹쳐 부르면 하나로.
   Future<void> catchUp() => _catchingUp ??= _catchUp().whenComplete(() => _catchingUp = null);
 
+
   Future<void> _catchUp() async {
     final api = ref.read(piApiProvider);
     if (api == null) return;
+
     try {
       final since = await _store.latestT();
-      final list = await api.events(since: since, limit: PiServer.maxEventsLimit);
+
+      final list = await api.events(
+        since: since,
+        limit: PiServer.maxEventsLimit,
+      );
+
       await _store.upsertAll(list);
       _bump();
-    } catch (_) {
-      // 다음 연결 때 다시
+
+      debugPrint('Cloud Event 동기화 성공: ${list.length}건');
+    } catch (e) {
+      debugPrint('Cloud Event 동기화 실패: $e');
     }
-    await syncPhotos();
+
+    // 사진 API가 아직 없어도 Event 기록은 정상 처리
+    try {
+      await syncPhotos();
+    } catch (e) {
+      debugPrint('사진 동기화 보류: $e');
+    }
   }
+
 
   Future<PhotoSyncResult?> syncPhotos() async {
     final sync = _photos;

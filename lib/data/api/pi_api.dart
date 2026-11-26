@@ -4,6 +4,8 @@ import 'package:dio/dio.dart';
 
 import '../models/models.dart';
 
+import 'package:flutter/foundation.dart';
+
 /// 파이 API 오류. 서버의 `{"error": "<코드>", "message": "<설명>"}` 또는 네트워크 오류.
 class PiApiException implements Exception {
   const PiApiException({required this.code, required this.message, this.statusCode});
@@ -42,6 +44,32 @@ class PiApiException implements Exception {
   String toString() => 'PiApiException($statusCode $code: $message)';
 }
 
+
+/// Cloud의 snake_case JSON을 Flutter Event 모델 형식으로 정규화한다.
+Event _eventFromCloudJson(Map<String, dynamic> json) {
+  // 기존 테스트 Event에는 started_at이 없을 수 있다.
+  // 이런 경우에만 Event 발생 시각(t)을 임시 대체값으로 사용한다.
+  final startedAt =
+      json['started_at'] ?? json['startedAt'] ?? json['t'];
+
+  final endedAt =
+      json['ended_at'] ?? json['endedAt'];
+
+  final endSituation =
+      json['end_situation'] ?? json['endSituation'];
+
+  return Event.fromJson({
+    ...json,
+    'startedAt': startedAt,
+    'started_at': startedAt,
+    'endedAt': endedAt,
+    'ended_at': endedAt,
+    'endSituation': endSituation,
+    'end_situation': endSituation,
+  });
+}
+
+
 /// SPEC 4장 REST. 클라우드(SPEC 9장)가 경로·필드를 그대로 제공한다.
 /// `/api/pair` 외에는 토큰이 있으면 `Authorization: Bearer <토큰>` 을 인터셉터가 붙인다.
 /// (`/api/info` 도 토큰과 함께 불러야 클라우드가 어느 파이인지 안다)
@@ -49,22 +77,45 @@ class PiApi {
   PiApi({required PiDevice device, this.token, Dio? dio}) : dio = dio ?? Dio() {
     this.dio.options
       ..baseUrl = device.baseUri.toString()
-      ..connectTimeout = const Duration(seconds: 4)
-      ..receiveTimeout = const Duration(seconds: 10)
-      ..sendTimeout = const Duration(seconds: 10);
-    this.dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) {
-        final t = token;
-        if (t != null && !_publicPaths.contains(options.path)) {
-          options.headers['Authorization'] = 'Bearer $t';
-        }
-        handler.next(options);
-      },
-      onError: (e, handler) {
-        // 호출하는 쪽은 DioException 대신 PiApiException 만 보면 된다
-        handler.next(e.copyWith(error: PiApiException.fromDio(e)));
-      },
-    ));
+      ..connectTimeout = const Duration(seconds: 60)
+      ..receiveTimeout = const Duration(seconds: 30)
+      ..sendTimeout = const Duration(seconds: 30);
+
+    this.dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          final t = token;
+
+          if (t != null && !_publicPaths.contains(options.path)) {
+            options.headers['Authorization'] = 'Bearer $t';
+          }
+
+          debugPrint('[API 요청] ${options.method} ${options.uri}');
+          handler.next(options);
+        },
+
+        onResponse: (response, handler) {
+          debugPrint(
+            '[API 성공] ${response.statusCode} '
+            '${response.requestOptions.path}',
+          );
+          handler.next(response);
+        },
+
+        onError: (e, handler) {
+          debugPrint(
+            '[API 실패] ${e.requestOptions.path} '
+            'type=${e.type}, '
+            'status=${e.response?.statusCode}, '
+            'message=${e.message}',
+          );
+
+          handler.next(
+            e.copyWith(error: PiApiException.fromDio(e)),
+          );
+        },
+      ),
+    );
   }
 
   final Dio dio;
@@ -110,12 +161,14 @@ class PiApi {
           'limit': ?limit,
           'abnormal': ?abnormal,
         });
-        return res.data!.map((e) => Event.fromJson(e as Map<String, dynamic>)).toList();
+        return res.data!
+          .map((e) => _eventFromCloudJson(e as Map<String, dynamic>))
+          .toList();
       });
 
   Future<Event> event(int id) => _guard(() async {
         final res = await dio.get<Map<String, dynamic>>('/api/events/$id');
-        return Event.fromJson(res.data!);
+        return _eventFromCloudJson(res.data!);
       });
 
   /// 사진 URL (cached_network_image 에 [authHeaders] 와 함께 넘긴다)
