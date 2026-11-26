@@ -146,7 +146,7 @@ def main() -> int:
     # 3. 토큰으로 읽기
     if token:
         print("\n3) 토큰으로 읽기")
-        status, body, _ = call(base, "GET", "/api/events", token="틀린토큰")
+        status, body, _ = call(base, "GET", "/api/events", token="wrong-token")
         report(status == 401, "틀린 토큰은 401", f"{status}")
 
         status, body, _ = call(base, "GET", "/api/events?limit=5", token=token)
@@ -168,6 +168,10 @@ def main() -> int:
         status, body, _ = call(base, "GET", f"/api/events?since={since}", token=token)
         report(status == 200, "GET /api/events?since=(하루 전)",
                f"{status} {len(body)}개" if status == 200 and isinstance(body, list) else f"{status} {short(body)}")
+
+        for path in ("/api/status", "/api/settings"):
+            status, body, _ = call(base, "GET", path, token=token)
+            report(status == 200, f"GET {path}", f"{status} {short(body)}")
 
     # 4. 파이 대신 이벤트 올리기
     if args.send_test_event:
@@ -197,7 +201,7 @@ def main() -> int:
     # 5. 앱이 부르지만 클라우드에 아직 없는 것 (SPEC 9.0). 실패로 세지 않는다
     if token:
         print("\n5) 아직 없는 경로 (참고, SPEC 9.0)")
-        for path in ("/api/status", "/api/settings", "/api/photos/pending", "/ws/live?token=x"):
+        for path in ("/api/photos/pending", "/ws/live?token=x"):
             status, _, _ = call(base, "GET", path, token=token)
             print(f"  [{'있음' if status not in (404, 405) else '없음'}] GET {path.split('?')[0]}: {status}")
 

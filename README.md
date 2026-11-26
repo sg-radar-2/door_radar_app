@@ -97,7 +97,7 @@ py scripts\check_cloud.py --token <토큰>         # 받은 토큰 다시 쓰기
 py scripts\check_cloud.py --token <토큰> --send-test-event --device-key <RAD2_DEVICE_API_KEY>   # 파이 대신 이벤트 하나 올리기 (DB에 남음)
 ```
 
-앱으로 보려면 기본 주소로 `flutter run` 하고 같은 코드로 연결한다. 지금 클라우드에는 기록·정답 표시·푸시 등록만 있어서 홈 실시간 지도·설정·기기 상태는 연결 안 됨으로 보인다(SPEC 9.0).
+앱으로 보려면 기본 주소로 `flutter run` 하고 같은 코드로 연결한다. 지금 클라우드에는 `/ws/live`와 사진이 없어서 홈 실시간 지도는 연결 안 됨, 기기 상태는 레이더 끊김으로 보인다(SPEC 9.0).
 
 ## 실제 클라우드·파이에서 확인할 것
 

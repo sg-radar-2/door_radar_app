@@ -199,10 +199,13 @@
 | `GET /api/info` | 인증 없이 고정 값(`name: "doorradar"`, `version`, `model`, `model_version`, `region`)을 준다. 파이에서 받아 오는 값이 아니다 |
 | `GET /api/events`, `GET /api/events/{id}` | 4장과 같다(Bearer 토큰). 이벤트 `id`는 **클라우드 id**이고 파이 id(`edge_event_id`)와 다르다. `photo`는 지금 항상 `false` |
 | `POST /api/events/{id}/label` | 4장과 같다. 클라우드 DB에만 저장하고 파이에는 전하지 않는다 |
-| `PUT /api/push_token` | `{"token", "platform"?: "android" \| "ios"}` → `{"ok": true, "platform"}` |
+| `GET /api/status` | 4장 형식이지만 파이가 상태를 아직 안 올려서 `radar: "disconnected"`, 나머지는 대부분 `null`, `status_source: "unavailable"`. `last_event_at`만 실제 값 |
+| `GET / PUT /api/settings` | 4장 형식. **클라우드 DB에만** 저장하고 파이에는 아직 전하지 않는다. `notify`는 이상 상황 3가지만, `camera_prob` 0~1, `camera_hold_s` 0~10, `region`·`device_keep_days`는 무시, 모르는 키는 400 `unknown_setting` |
+| `PUT /api/push_token` | `{"token", "platform"?: "android" \| "ios"}` → `{"ok": true, "platform"}`. `camera` 이벤트가 오면 클라우드가 FCM을 보낸다 |
 | `POST /api/device/events` | 파이 → 클라우드 이벤트 올리기(9.3). 헤더 `X-Device-Key` |
 
-- **없는 것 (404)**: `/api/status`, `/api/settings`, `/api/radar/reconnect`, `/api/events/{id}/photo`, `/api/photos/pending`·`ack`, `/ws/live`, 파이 접속 상태(`pi`), 사진 올리기. 그래서 실제 클라우드에 붙은 앱은 페어링·기록·정답 표시·푸시 등록만 되고, 홈 실시간 지도와 설정·기기 상태는 "연결 안 됨"으로 보인다.
+- **없는 것 (404)**: `/api/radar/reconnect`, `/api/events/{id}/photo`, `/api/photos/pending`·`ack`, `/ws/live`, 파이 접속 상태(`pi`), 사진 올리기. 그래서 실제 클라우드에 붙은 앱은 기록·정답 표시·설정·푸시는 되지만, 홈 실시간 지도는 "연결 안 됨"이고 기기 상태는 레이더 끊김으로 보인다.
+- **시각**: 클라우드는 `t` 등을 UTC(`+00:00`)로 준다. 시각 자체는 같으니 앱은 시간대를 붙여 파싱하고 한국 시간으로 보여 준다.
 - **기기 한 대**: 클라우드는 `device_id = "rad2pi"` 하나만 받는다. 페어링한 모든 폰이 이 기기를 본다.
 - **페어링 코드 맞추기**: Render의 `RAD2_PAIR_CODE`와 앱에 입력하는 코드가 같아야 한다. 파이 코드와는 관계없지만, 헷갈리지 않게 파이 `config.toml`의 `pair_code`도 같은 값으로 고정해 두기를 권한다(비우면 파이가 켤 때마다 새 코드를 만든다).
 - 연결 확인: `python scripts/check_cloud.py --code <코드>` (README 「실제 클라우드 연결 확인」).
